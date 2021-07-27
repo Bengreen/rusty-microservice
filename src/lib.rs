@@ -1,6 +1,9 @@
 use std::io::prelude::*;
-use std::net::TcpListener;
-use std::net::TcpStream;
+use std::net::{TcpListener, TcpStream};
+use warp::Filter;
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+
 
 
 
@@ -34,39 +37,21 @@ pub fn simple_listen() {
     }
 }
 
-// pub struct ThreadPool;
 
-// impl ThreadPool {
-//     pub fn new(size: usize) -> ThreadPool {
-//         assert!(size > 0);
 
-//         let mut workers = Vec::with_capacity(size);
 
-//         for id in 0..size {
-//             workers.push(Worker::new(id));
-//         }
 
-//         ThreadPool { workers }
-//     }
-//     pub fn execute<F>(&self, f: F)
-//     where
-//         F: FnOnce() + Send + 'static,
-//         T: Send + 'static
-//     {
-//     }
-// }
-
-use std::sync::mpsc;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::thread;
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    sender: mpsc::Sender<Message>,
 }
-
 type Job = Box<dyn FnOnce() + Send + 'static>;
+
+enum Message {
+    NewJob(Job),
+    Terminate,
+}
 
 impl ThreadPool {
     /// Create a new ThreadPool.
@@ -98,26 +83,58 @@ impl ThreadPool {
     {
         let job = Box::new(f);
 
-        self.sender.send(job).unwrap();
+        self.sender.send(Message::NewJob(job)).unwrap();
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        println!("Sending terminate message to all workers.");
+
+        for _ in &self.workers {
+            self.sender.send(Message::Terminate).unwrap();
+        }
+
+        println!("Shutting down all workers.");
+
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+        }
     }
 }
 
 struct Worker {
     id: usize,
-    thread: thread::JoinHandle<()>,
+    thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker {
-    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
-        let thread = thread::spawn(move || {
-            while let Ok(job) = receiver.lock().unwrap().recv() {
-                println!("Worker {} got a job; executing.", id);
+    fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
+        let thread = thread::spawn(move || loop {
+            let message = receiver.lock().unwrap().recv().unwrap();
 
-                job();
+            match message {
+                Message::NewJob(job) => {
+                    println!("Worker {} got a job; executing.", id);
+
+                    job();
+                }
+                Message::Terminate => {
+                    println!("Worker {} was told to terminate.", id);
+
+                    break;
+                }
             }
         });
 
-        Worker { id, thread }
+        Worker {
+            id,
+            thread: Some(thread),
+        }
     }
 }
 
@@ -135,6 +152,7 @@ pub fn thread_listen() {
             handle_connection(stream);
         });
     }
+    println!("Shutting down.");
 }
 
 fn handle_connection(mut stream: TcpStream) {
@@ -155,5 +173,37 @@ fn handle_connection(mut stream: TcpStream) {
 
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
+}
+
+
+
+
+
+pub async fn warp_listen() {
+    println!("start my warp");
+
+
+    let hello = warp::path!("hello" / String)
+        .map(|name| {
+            println!("got here for {}", name);
+            format!("Hello, {}!", name)
+        });
+
+    warp::serve(hello)
+        .run(([0, 0, 0, 0], 7878))
+        .await;
+}
+
+pub fn tokio_start() {
+    println!("start my tokio");
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("build runtime");
+
+    let local = tokio::task::LocalSet::new();
+    local.block_on(&rt, warp_listen());
+
 }
 

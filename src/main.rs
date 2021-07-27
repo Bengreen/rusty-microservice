@@ -5,7 +5,7 @@
 use clap::{Arg, App};
 use std::net::TcpListener;
 mod lib;
-use lib::{simple_listen, thread_listen};
+use lib::{simple_listen, thread_listen, tokio_start};
 
 fn main() {
     let matches = App::new("Simple CLI App")
@@ -37,6 +37,10 @@ fn main() {
                 .arg(Arg::new("thread")
                     .short('t')
                     .about("Enable threads")
+                )
+                .arg(Arg::new("warp")
+                    .short('w')
+                    .about("Enable Warp")
                 )
                 .arg(Arg::new("debug")
                     .short('d')
@@ -78,14 +82,16 @@ fn main() {
 
         println!("Listening");
 
-        if matches.is_present("thread") {
-            thread_listen();
+        if matches.is_present("warp") {
+            tokio_start();
         } else {
-            simple_listen();
+
+            if matches.is_present("thread") {
+                thread_listen();
+            } else {
+                simple_listen();
+            }
         }
-
-
-
     }
 
     // Continued program logic goes here...
