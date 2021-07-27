@@ -3,9 +3,13 @@
 // This example demonstrates clap's "builder pattern" method of creating arguments
 // which the most flexible, but also most verbose.
 use clap::{Arg, App};
-use std::net::TcpListener;
+
 mod lib;
-use lib::{simple_listen, thread_listen, tokio_start};
+use lib::{simple_listen, tokio_start};
+mod tcpthread;
+use tcpthread::thread_listen;
+
+use lib::handle_connection;
 
 fn main() {
     let matches = App::new("Simple CLI App")
