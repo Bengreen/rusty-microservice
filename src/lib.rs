@@ -1,14 +1,10 @@
 use std::io::prelude::*;
-use std::net::{TcpStream, TcpListener};
+use std::net::{TcpListener, TcpStream};
 use warp::Filter;
-
-
-
 
 pub fn greeting(name: &str) -> String {
     format!("Hello {}!", name)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -21,8 +17,6 @@ mod tests {
     }
 }
 
-
-
 pub fn simple_listen() {
     println!("Starting simple listen");
     let listener = TcpListener::bind("0.0.0.0:7878").unwrap();
@@ -34,10 +28,6 @@ pub fn simple_listen() {
         handle_connection(stream);
     }
 }
-
-
-
-
 
 pub fn handle_connection(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
@@ -59,23 +49,26 @@ pub fn handle_connection(mut stream: TcpStream) {
     stream.flush().unwrap();
 }
 
-
-
-
-
 pub async fn warp_listen() {
     println!("start my warp");
 
+    let k8s_alive = warp::path!("alive").map(|| {
+        println!("Requesting for alive");
+        format!("Alive")
+    });
+    let k8s_ready = warp::path!("ready").map(|| {
+        println!("Requesting for ready");
+        format!("Ready")
+    });
 
-    let hello = warp::path!("hello" / String)
-        .map(|name| {
-            println!("got here for {}", name);
-            format!("Hello, {}!", name)
-        });
+    let hello = warp::path!("hello" / String).map(|name| {
+        println!("got here for {}", name);
+        format!("Hello, {}!", name)
+    });
 
-    warp::serve(hello)
-        .run(([0, 0, 0, 0], 7878))
-        .await;
+    let routes = warp::get().and(hello.or(k8s_alive).or(k8s_ready));
+
+    warp::serve(routes).run(([0, 0, 0, 0], 7878)).await;
 }
 
 pub fn tokio_start() {
@@ -88,6 +81,4 @@ pub fn tokio_start() {
 
     let local = tokio::task::LocalSet::new();
     local.block_on(&rt, warp_listen());
-
 }
-

@@ -1,9 +1,7 @@
-
+use crate::lib::handle_connection;
+use std::net::TcpListener;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use std::net::TcpListener;
-use crate::lib::handle_connection;
-
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
@@ -100,7 +98,6 @@ impl Worker {
         }
     }
 }
-
 
 pub fn thread_listen() {
     println!("Starting threadpool listen");
