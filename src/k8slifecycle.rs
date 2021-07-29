@@ -1,7 +1,8 @@
 use std::time::SystemTime;
 use std::time::Duration;
 use std::{thread, time};
-
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Debug)]
 pub struct Health {
@@ -111,7 +112,45 @@ mod tests {
         assert!(health.valid());
     }
 
+    #[test]
+    fn tryout() {
+        println!("try this out");
 
+        {
+            let ben = Rc::new(Health::new("abc", time::Duration::from_millis(15)));
+
+            let a = Rc::clone(&ben);
+            println!("TIME = {:?}", a.time);
+            println!("RC = {}", Rc::strong_count(&ben));
+            {
+                let b = Rc::clone(&ben);
+                println!("RC = {}", Rc::strong_count(&ben));
+                // b.tick(); cannot borrow as mutable
+            }
+            println!("RC = {}", Rc::strong_count(&ben));
+            println!("TIME = {:?}", a.time);
+        }
+
+        {
+            let ben = Rc::new(RefCell::new(Health::new("abc", time::Duration::from_millis(15))));
+
+            let a = Rc::clone(&ben);
+            println!("TIME = {:?}", a.borrow().time);
+            println!("RC = {}", Rc::strong_count(&ben));
+            {
+                let b = Rc::clone(&ben);
+                println!("RC = {}", Rc::strong_count(&ben));
+
+            }
+            ben.borrow_mut().tick();
+
+            println!("RC = {}", Rc::strong_count(&ben));
+            println!("TIME = {:?}", a.borrow().time);
+        }
+
+
+        println!("DONE");
+    }
 
 
 
