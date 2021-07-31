@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
 use std::{thread, time};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct HealthProbe {
@@ -50,23 +51,56 @@ impl HealthCheck {
         // self.probelist.last_mut().unwrap()
     }
 
-    fn status(&self) -> bool {
+    fn status(&self) -> (bool, HashMap<String,bool>) {
         let mut happy = true;
-        for val in self.probelist.iter() {
-            if !val.borrow().valid() {
-                happy = false;
-            }
-        }
-        happy
+
+        let detail: HashMap<_,_> = self.probelist.iter()
+            .map(|x| {
+                let tempme = x.borrow();
+                if !tempme.valid() {
+                    happy = false;
+                }
+                // println!("Looking at {}", tempme.name);
+                (tempme.name.clone(), tempme.valid())
+            })
+            .collect();
+        // println!("Looking at this {:?}", xxx);
+        (happy, detail)
     }
     // fn add<'a>(&'a mut self, probe: impl HealthProbeProbe + 'a) {
     //     self.probelist.push(Box::new(probe));
     // }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
+
+    #[test]
+    fn test_iter_map() {
+        println!("start map test");
+
+
+        let myvec = vec![1,2,3];
+
+        println!("my vector is {:?}", myvec);
+
+        let newvec: Vec<_> = myvec.iter().map(|x| format!("ABC-{}",*x)).collect();
+        println!("NEW vector is {:?}", newvec);
+
+
+        let newmap: HashMap<_,_> = myvec.iter()
+            .enumerate()
+            .map(|(pos, x)| (pos, format!("ABC-{}",*x)))
+            .collect();
+        println!("NEW hashmap is {:?}", newmap);
+
+        println!("object 1 = {:?}", newmap[&2]);
+    }
+
 
     #[test]
     fn health_check_generation() {
@@ -94,7 +128,8 @@ mod tests {
 
         println!("HealthProbe probe = {:?}", health_probe1);
 
-        assert!(health_check.status());
+
+        assert!(health_check.status().0);
     }
 
     #[test]
