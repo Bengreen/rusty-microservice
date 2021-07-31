@@ -9,12 +9,14 @@ use lib::{simple_listen, tokio_start};
 mod tcpthread;
 use tcpthread::thread_listen;
 mod k8slifecycle;
+mod uservice;
+use uservice::{start};
 
 fn main() {
-    let matches = App::new("Simple CLI App")
+    let matches = App::new("K8s Rust uService")
         .version("1.0")
         .author("B. Greene <BenJGreene+github@gmail.com>")
-        .about("Does awesome things")
+        .about("Rust uService")
         .arg(
             Arg::new("config")
                 .short('c')
@@ -29,6 +31,14 @@ fn main() {
                 .multiple_occurrences(true)
                 .takes_value(true)
                 .about("Sets the level of verbosity"),
+        )
+        .subcommand(
+            App::new("validate")
+                .about("Validate input yaml"),
+        )
+        .subcommand(
+            App::new("start")
+                .about("Start service"),
         )
         .subcommand(
             App::new("test")
@@ -56,22 +66,16 @@ fn main() {
         )
         .get_matches();
 
-    // You can check the value provided by positional arguments, or option arguments
-    if let Some(i) = matches.value_of("INPUT") {
-        println!("Value for input: {}", i);
-    }
-
     if let Some(c) = matches.value_of("config") {
         println!("Value for config: {}", c);
     }
 
     // You can see how many times a particular flag or argument occurred
     // Note, only flags can have multiple occurrences
-    match matches.occurrences_of("v") {
-        0 => println!("Verbose mode is off"),
-        1 => println!("Verbose mode is kind of on"),
-        2 => println!("Verbose mode is on"),
-        _ => println!("Don't be crazy"),
+    let verbose = matches.occurrences_of("v") ;
+
+    if verbose>0 {
+        println!("Verbosity set to: {}", verbose);
     }
 
     // You can check for the existence of subcommands, and if found use their
@@ -84,6 +88,19 @@ fn main() {
         } else {
             println!("Printing normally...");
         }
+    }
+
+
+    match matches.subcommand() {
+        Some(("validate", validate_matches)) => {
+            println!("validate");
+            uservice::start();
+        },
+        Some(("start", start_matches)) => {
+            println!("Starting");
+        },
+        None => println!("No command provided"),
+        _ => unreachable!(),
     }
 
     if let Some(ref matches) = matches.subcommand_matches("listen") {

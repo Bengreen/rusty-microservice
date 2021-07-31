@@ -12,7 +12,7 @@ pub struct HealthProbe {
     time: SystemTime,
 }
 impl HealthProbe {
-    fn new(name: &str, margin: Duration) -> HealthProbe {
+    pub fn new(name: &str, margin: Duration) -> HealthProbe {
         HealthProbe {
             name: name.to_string(),
             margin,
@@ -46,12 +46,12 @@ impl HealthCheck {
         }
     }
 
-    fn add(&mut self, probe: &Rc<RefCell<HealthProbe>>) {
+    pub fn add(&mut self, probe: &Rc<RefCell<HealthProbe>>) {
         self.probelist.push(Rc::clone(probe));
         // self.probelist.last_mut().unwrap()
     }
 
-    fn status(&self) -> (bool, HashMap<String,bool>) {
+    pub fn status(&self) -> (bool, HashMap<String,bool>) {
         let mut happy = true;
 
         let detail: HashMap<_,_> = self.probelist.iter()
@@ -128,7 +128,7 @@ mod tests {
 
         println!("HealthProbe probe = {:?}", health_probe1);
 
-
+        println!("health probe status = {:?}", health_check.status());
         assert!(health_check.status().0);
     }
 
