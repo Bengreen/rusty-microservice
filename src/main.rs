@@ -10,7 +10,7 @@ mod tcpthread;
 use tcpthread::thread_listen;
 mod k8slifecycle;
 mod uservice;
-use uservice::{start};
+use crate::uservice::{start, UServiceConfig};
 
 fn main() {
     let matches = App::new("K8s Rust uService")
@@ -32,14 +32,8 @@ fn main() {
                 .takes_value(true)
                 .about("Sets the level of verbosity"),
         )
-        .subcommand(
-            App::new("validate")
-                .about("Validate input yaml"),
-        )
-        .subcommand(
-            App::new("start")
-                .about("Start service"),
-        )
+        .subcommand(App::new("validate").about("Validate input yaml"))
+        .subcommand(App::new("start").about("Start service"))
         .subcommand(
             App::new("test")
                 .about("controls testing features")
@@ -72,9 +66,9 @@ fn main() {
 
     // You can see how many times a particular flag or argument occurred
     // Note, only flags can have multiple occurrences
-    let verbose = matches.occurrences_of("v") ;
+    let verbose = matches.occurrences_of("v");
 
-    if verbose>0 {
+    if verbose > 0 {
         println!("Verbosity set to: {}", verbose);
     }
 
@@ -90,32 +84,33 @@ fn main() {
         }
     }
 
-
     match matches.subcommand() {
-        Some(("validate", validate_matches)) => {
-            println!("validate");
-            uservice::start();
-        },
+        Some(("parse", validate_matches)) => {
+            println!("parse and validate");
+
+        }
         Some(("start", start_matches)) => {
             println!("Starting");
-        },
+
+            uservice::start(&UServiceConfig{name: String::from("simple")});
+        }
         None => println!("No command provided"),
         _ => unreachable!(),
     }
 
-    if let Some(ref matches) = matches.subcommand_matches("listen") {
-        println!("Listening");
+    // if let Some(ref matches) = matches.subcommand_matches("listen") {
+    //     println!("Listening");
 
-        if matches.is_present("warp") {
-            tokio_start();
-        } else {
-            if matches.is_present("thread") {
-                thread_listen();
-            } else {
-                simple_listen();
-            }
-        }
-    }
+    //     if matches.is_present("warp") {
+    //         tokio_start();
+    //     } else {
+    //         if matches.is_present("thread") {
+    //             thread_listen();
+    //         } else {
+    //             simple_listen();
+    //         }
+    //     }
+    // }
 
     // Continued program logic goes here...
 }

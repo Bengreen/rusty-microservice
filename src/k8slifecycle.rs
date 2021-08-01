@@ -1,9 +1,10 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
 use std::{thread, time};
-use std::collections::HashMap;
+use warp::Filter;
 
 #[derive(Debug)]
 pub struct HealthProbe {
@@ -51,10 +52,12 @@ impl HealthCheck {
         // self.probelist.last_mut().unwrap()
     }
 
-    pub fn status(&self) -> (bool, HashMap<String,bool>) {
+    pub fn status(&self) -> (bool, HashMap<String, bool>) {
         let mut happy = true;
 
-        let detail: HashMap<_,_> = self.probelist.iter()
+        let detail: HashMap<_, _> = self
+            .probelist
+            .iter()
             .map(|x| {
                 let tempme = x.borrow();
                 if !tempme.valid() {
@@ -72,35 +75,61 @@ impl HealthCheck {
     // }
 }
 
+// use std::net::{ToSocketAddrs, SocketAddr};
+
+pub async fn health_listen(basepath: &'static str , port: u16, liveness: &HealthCheck) {
+    println!("Starting Health http on {}", port);
+
+    let k8s_alive = warp::path!("alive").map(|| {
+        println!("Requesting for alive");
+        // let ben = liveness.status();
+
+        // println!("liveness status = {:?}", ben);
+        format!("Alive")
+    });
+    let k8s_ready = warp::path!("ready").map(|| {
+        println!("Requesting for ready");
+        format!("Ready")
+    });
+    let metrics = warp::path!("metrics").map(|| {
+        println!("Requesting for metrics");
+        format!("Metrics")
+    });
+
+    // let hello = warp::path!("hello" / String).map(|name| {
+    //     println!("got here for {}", name);
+    //     format!("Hello, {}!", name)
+    // });
+
+    let routes = warp::path(basepath).and(warp::get().and(k8s_alive.or(k8s_ready)));
+
+    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-
-
     #[test]
     fn test_iter_map() {
         println!("start map test");
 
-
-        let myvec = vec![1,2,3];
+        let myvec = vec![1, 2, 3];
 
         println!("my vector is {:?}", myvec);
 
-        let newvec: Vec<_> = myvec.iter().map(|x| format!("ABC-{}",*x)).collect();
+        let newvec: Vec<_> = myvec.iter().map(|x| format!("ABC-{}", *x)).collect();
         println!("NEW vector is {:?}", newvec);
 
-
-        let newmap: HashMap<_,_> = myvec.iter()
+        let newmap: HashMap<_, _> = myvec
+            .iter()
             .enumerate()
-            .map(|(pos, x)| (pos, format!("ABC-{}",*x)))
+            .map(|(pos, x)| (pos, format!("ABC-{}", *x)))
             .collect();
         println!("NEW hashmap is {:?}", newmap);
 
         println!("object 1 = {:?}", newmap[&2]);
     }
-
 
     #[test]
     fn health_check_generation() {
