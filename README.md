@@ -2,8 +2,8 @@
 
 
 Create a small runtime that implements the following.
- * [ ] CLI parsing and starting
- * [ ] Change warp for actix-web
+ * [x] CLI parsing and starting
+ * [o] Change warp for actix-web (Actix seems to not be easily mappable to single thread and initialised from non-async code)
  * [ ] readiness/liveness
  * [ ] JSON output from readiness/lifeness
  * [ ] YAML config with validation
