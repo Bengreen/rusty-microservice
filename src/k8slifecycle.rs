@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::Duration;
 use std::time::SystemTime;
-use std::{thread, time};
 use warp::Filter;
 
 #[derive(Debug)]
@@ -21,7 +20,7 @@ impl HealthProbe {
         }
     }
 
-    fn tick(&mut self) {
+    pub fn tick(&mut self) {
         self.time = SystemTime::now();
     }
     fn name(&self) -> &str {
@@ -77,7 +76,7 @@ impl HealthCheck {
 
 // use std::net::{ToSocketAddrs, SocketAddr};
 
-pub async fn health_listen(basepath: &'static str , port: u16, liveness: &HealthCheck) {
+pub async fn health_listen(basepath: &'static str , port: u16, _liveness: &HealthCheck) {
     println!("Starting Health http on {}", port);
 
     let k8s_alive = warp::path!("alive").map(|| {
@@ -101,7 +100,12 @@ pub async fn health_listen(basepath: &'static str , port: u16, liveness: &Health
     //     format!("Hello, {}!", name)
     // });
 
-    let routes = warp::path(basepath).and(warp::get().and(k8s_alive.or(k8s_ready)));
+    let routes = warp::path(basepath).and(
+        warp::get().and(
+            k8s_alive
+            .or(k8s_ready)
+            .or(metrics)
+        ));
 
     println!("wait here");
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;

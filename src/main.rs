@@ -5,12 +5,11 @@
 use clap::{App, Arg};
 
 mod lib;
-use lib::{simple_listen, tokio_start};
 mod tcpthread;
-use tcpthread::thread_listen;
 mod k8slifecycle;
 mod uservice;
-use crate::uservice::{start, UServiceConfig};
+use crate::uservice::{UServiceConfig};
+use crate::lib::simple_listen;
 
 fn main() {
     let matches = App::new("K8s Rust uService")
@@ -86,13 +85,17 @@ fn main() {
 
     match matches.subcommand() {
         Some(("parse", validate_matches)) => {
-            println!("parse and validate");
+            println!("parse and validate {:?}", validate_matches);
 
         }
-        Some(("start", start_matches)) => {
+        Some(("start", _start_matches)) => {
             println!("Starting");
 
             uservice::start(&UServiceConfig{name: String::from("simple")});
+        }
+        Some(("listen", listen_matches)) => {
+            println!("listening");
+            simple_listen();
         }
         None => println!("No command provided"),
         _ => unreachable!(),

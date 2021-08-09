@@ -1,6 +1,5 @@
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
-use warp::Filter;
 
 pub fn greeting(name: &str) -> String {
     format!("Hello {}!", name)
@@ -47,38 +46,4 @@ pub fn handle_connection(mut stream: TcpStream) {
 
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
-}
-
-pub async fn warp_listen() {
-    println!("start my warp");
-
-    let k8s_alive = warp::path!("alive").map(|| {
-        println!("Requesting for alive");
-        format!("Alive")
-    });
-    let k8s_ready = warp::path!("ready").map(|| {
-        println!("Requesting for ready");
-        format!("Ready")
-    });
-
-    let hello = warp::path!("hello" / String).map(|name| {
-        println!("got here for {}", name);
-        format!("Hello, {}!", name)
-    });
-
-    let routes = warp::get().and(hello.or(k8s_alive).or(k8s_ready));
-
-    warp::serve(routes).run(([0, 0, 0, 0], 7878)).await;
-}
-
-pub fn tokio_start() {
-    println!("start my tokio");
-
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("build runtime");
-
-    let local = tokio::task::LocalSet::new();
-    local.block_on(&rt, warp_listen());
 }

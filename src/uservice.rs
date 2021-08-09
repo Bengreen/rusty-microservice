@@ -12,7 +12,7 @@ pub fn start(config: &UServiceConfig) {
     println!("uService: Start");
     let mut liveness = HealthCheck::new("liveness");
 
-    let mut probe0 = Rc::new(RefCell::new(HealthProbe::new(
+    let probe0 = Rc::new(RefCell::new(HealthProbe::new(
         "HealthCheck",
         Duration::from_secs(30),
     )));
@@ -29,7 +29,7 @@ pub fn start(config: &UServiceConfig) {
         health_listen("health", 7979, &liveness).await;
     });
 
-
+    probe0.borrow_mut().tick();
 
     println!("uService {}: Stop", config.name);
 
