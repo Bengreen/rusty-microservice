@@ -103,7 +103,9 @@ pub async fn health_listen(basepath: &'static str , port: u16, liveness: &Health
 
     let routes = warp::path(basepath).and(warp::get().and(k8s_alive.or(k8s_ready)));
 
+    println!("wait here");
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+    println!("AND HERE");
 }
 
 #[cfg(test)]

@@ -21,10 +21,28 @@ pub fn start(config: &UServiceConfig) {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .expect("build runtime");
+        .unwrap();
+        // .expect("build runtime");
 
-    let local = tokio::task::LocalSet::new();
-    local.block_on(&rt, health_listen("health", 7979, &liveness));
+    // rt.block_on(health_listen("health", 7979, &liveness));
+
+    // let local = tokio::task::LocalSet::new();
+    // local.block_on(&rt, health_listen("health", 7979, &liveness));
+
+
+    // This creates the async functions from a non-awsync function
+    rt.block_on(async {
+        println!("hello");
+
+        let local = tokio::task::LocalSet::new();
+        local.run_until(async move {
+            println!("GOT HRERE");
+            health_listen("health", 7979, &liveness).await;
+            println!("DONE");
+        }).await;
+    });
+
+
 
     println!("uService {}: Stop", config.name);
 
