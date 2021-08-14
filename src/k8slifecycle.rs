@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{Duration, SystemTime};
 use warp::Filter;
-// use thread;
 
 #[derive(Debug)]
 pub struct HealthProbe {

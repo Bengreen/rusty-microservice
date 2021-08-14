@@ -106,19 +106,4 @@ fn main() {
         _ => unreachable!(),
     }
 
-    // if let Some(ref matches) = matches.subcommand_matches("listen") {
-    //     println!("Listening");
-
-    //     if matches.is_present("warp") {
-    //         tokio_start();
-    //     } else {
-    //         if matches.is_present("thread") {
-    //             thread_listen();
-    //         } else {
-    //             simple_listen();
-    //         }
-    //     }
-    // }
-
-    // Continued program logic goes here...
 }
