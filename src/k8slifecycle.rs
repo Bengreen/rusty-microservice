@@ -1,9 +1,9 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::time::Duration;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use warp::Filter;
+// use thread;
 
 #[derive(Debug)]
 pub struct HealthProbe {
@@ -145,7 +145,7 @@ mod tests {
 
         let health_probe0 = Rc::new(RefCell::new(HealthProbe::new(
             "HealthCheck",
-            time::Duration::from_millis(15),
+            Duration::from_millis(15),
         )));
         health_check.add(&health_probe0);
 
@@ -153,7 +153,7 @@ mod tests {
 
         let health_probe1 = Rc::new(RefCell::new(HealthProbe::new(
             "def",
-            time::Duration::from_millis(25),
+            Duration::from_millis(25),
         )));
         health_check.add(&health_probe1);
 
@@ -171,17 +171,17 @@ mod tests {
     fn health_probe_ticking() {
         println!("ready to go");
 
-        let mut health_probe = HealthProbe::new("HealthCheck", time::Duration::from_millis(15));
+        let mut health_probe = HealthProbe::new("HealthCheck", Duration::from_millis(15));
 
         health_probe.tick();
 
         let oldtick = health_probe.time;
-        thread::sleep(time::Duration::from_millis(10));
+        thread::sleep(Duration::from_millis(10));
         health_probe.tick();
         assert!(oldtick < health_probe.time);
 
         assert!(health_probe.valid());
-        thread::sleep(time::Duration::from_millis(20));
+        thread::sleep(Duration::from_millis(20));
         assert!(!health_probe.valid());
 
         health_probe.tick();
@@ -195,7 +195,7 @@ mod tests {
         {
             let ben = Rc::new(HealthProbe::new(
                 "HealthCheck",
-                time::Duration::from_millis(15),
+                Duration::from_millis(15),
             ));
 
             let a = Rc::clone(&ben);
@@ -213,7 +213,7 @@ mod tests {
         {
             let ben = Rc::new(RefCell::new(HealthProbe::new(
                 "HealthCheck",
-                time::Duration::from_millis(15),
+                Duration::from_millis(15),
             )));
 
             let a = Rc::clone(&ben);
@@ -233,7 +233,7 @@ mod tests {
             // This breaks the mut and immute at same time rules
             let ben = RefCell::new(HealthProbe::new(
                 "HealthCheck",
-                time::Duration::from_millis(15),
+                Duration::from_millis(15),
             ));
 
             let a = ben.borrow();

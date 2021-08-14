@@ -33,6 +33,7 @@ fn main() {
         )
         .subcommand(App::new("validate").about("Validate input yaml"))
         .subcommand(App::new("start").about("Start service"))
+        .subcommand(App::new("dev").about("Dev service"))
         .subcommand(
             App::new("test")
                 .about("controls testing features")
@@ -93,9 +94,13 @@ fn main() {
 
             uservice::start(&UServiceConfig{name: String::from("simple")});
         }
-        Some(("listen", listen_matches)) => {
+        Some(("listen", _listen_matches)) => {
             println!("listening");
             simple_listen();
+        }
+        Some(("dev", _dev_matches)) => {
+            println!("DEV system");
+
         }
         None => println!("No command provided"),
         _ => unreachable!(),
