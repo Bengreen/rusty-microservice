@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use warp::Filter;
 use atomic::Atomic;
-use std::thread;
 
 #[derive(Debug)]
 pub struct HealthProbe {
@@ -73,16 +72,13 @@ impl HealthCheck {
             .collect();
         (happy, detail)
     }
-    // fn add<'a>(&'a mut self, probe: impl HealthProbeProbe + 'a) {
-    //     self.probelist.push(Box::new(probe));
-    // }
 }
 
 
 pub async fn health_listen(basepath: &'static str , port: u16, liveness: &HealthCheck) {
     println!("Starting Health http on {}", port);
 
-    let api = filters::health(liveness.clone());
+    let api = filters::health(basepath, liveness.clone());
 
     let routes = api.with(warp::log("health"));
 
@@ -91,20 +87,23 @@ pub async fn health_listen(basepath: &'static str , port: u16, liveness: &Health
 }
 
 
-
 mod filters {
     use warp::Filter;
     use crate::k8slifecycle::HealthCheck;
     use super::handlers;
 
-    pub fn health(liveness: HealthCheck) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        liveness_check(liveness.clone())
+    pub fn health(basepath: &'static str, liveness: HealthCheck) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+        liveness_check(basepath, liveness.clone())
     }
 
     pub fn liveness_check(
+        basepath: &'static str,
         liveness: HealthCheck
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        warp::path!("alive")
+        // warp::path!("basename" / "alive")
+        warp::path(basepath)
+            .and(warp::path!("alive"))
+            // .and(warp::path::end())
             .and(warp::get())
             .and(with_liveness(liveness))
             .and_then(handlers::liveness)
@@ -121,7 +120,9 @@ mod handlers {
     use crate::k8slifecycle::HealthCheck;
 
     pub async fn liveness(liveness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
+        println!("Checking alive");
         let (happy, detail) = liveness.status();
+
         Ok(warp::reply::with_status(warp::reply::json(&detail), if happy {StatusCode::OK} else {StatusCode::REQUEST_TIMEOUT}))
     }
 }
@@ -132,142 +133,59 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_iter_map() {
-        println!("start map test");
-
-        let myvec = vec![1, 2, 3];
-
-        println!("my vector is {:?}", myvec);
-
-        let newvec: Vec<_> = myvec.iter().map(|x| format!("ABC-{}", *x)).collect();
-        println!("NEW vector is {:?}", newvec);
-
-        let newmap: HashMap<_, _> = myvec
-            .iter()
-            .enumerate()
-            .map(|(pos, x)| (pos, format!("ABC-{}", *x)))
-            .collect();
-        println!("NEW hashmap is {:?}", newmap);
-
-        println!("object 1 = {:?}", newmap[&2]);
-    }
-
-    #[test]
-    fn health_check_generation() {
-        println!("ready to go");
-
-        let mut health_check = HealthCheck::new("def");
-
-        let health_probe0 = Rc::new(RefCell::new(HealthProbe::new(
-            "HealthCheck",
-            Duration::from_millis(15),
-        )));
-        health_check.add(&health_probe0);
-
-        health_probe0.borrow_mut().tick();
-
-        let health_probe1 = Rc::new(RefCell::new(HealthProbe::new(
-            "def",
-            Duration::from_millis(25),
-        )));
-        health_check.add(&health_probe1);
-
-        println!("health_probe0 RC = {}", Rc::strong_count(&health_probe0));
-
-        health_probe1.borrow_mut().tick();
-
-        println!("HealthProbe probe = {:?}", health_probe1);
-
-        println!("health probe status = {:?}", health_check.status());
-        assert!(health_check.status().0);
-    }
-
-    #[test]
     fn health_probe_ticking() {
-        println!("ready to go");
+        //! Test that a HalthProbe provides valid and clears valid when tick'ed
 
         let mut health_probe = HealthProbe::new("HealthCheck", Duration::from_millis(15));
 
         health_probe.tick();
 
-        let oldtick = health_probe.time;
+        let oldtick = health_probe.time.load(Ordering::SeqCst);
         thread::sleep(Duration::from_millis(10));
         health_probe.tick();
-        assert!(oldtick < health_probe.time);
+        assert!(oldtick < health_probe.time.load(Ordering::SeqCst));
 
         assert!(health_probe.valid());
         thread::sleep(Duration::from_millis(20));
         assert!(!health_probe.valid());
+        thread::sleep(Duration::from_millis(20));
 
-        health_probe.tick();
-        assert!(health_probe.valid());
+        // health_probe.tick();
+        assert!(!health_probe.valid());
     }
 
     #[test]
-    fn tryout() {
-        println!("try this out");
+    fn health_check_ticking() {
+        //! Test that a HealthCheck provides works correctly returning both happy and detail
+        let mut hp0 = HealthProbe::new("HealthCheck0", Duration::from_millis(15));
+        let mut hp1 = HealthProbe::new("HealthCheck1", Duration::from_millis(15));
 
-        {
-            let ben = Rc::new(HealthProbe::new(
-                "HealthCheck",
-                Duration::from_millis(15),
-            ));
+        let mut hc0 = HealthCheck::new("simple");
 
-            let a = Rc::clone(&ben);
-            println!("TIME = {:?}", a.time);
-            println!("RC = {}", Rc::strong_count(&ben));
-            {
-                let _b = Rc::clone(&ben);
-                println!("RC = {}", Rc::strong_count(&ben));
-                // b.tick(); cannot borrow as mutable
-            }
-            println!("RC = {}", Rc::strong_count(&ben));
-            println!("TIME = {:?}", a.time);
-        }
+        hc0.add(&hp0);
+        hc0.add(&hp1);
 
-        {
-            let ben = Rc::new(RefCell::new(HealthProbe::new(
-                "HealthCheck",
-                Duration::from_millis(15),
-            )));
+        let (happy, detail) = hc0.status();
+        println!("detail = {:?}", detail);
+        assert!(happy);
+        assert!(detail.len() == 2);
+        hp0.tick();
 
-            let a = Rc::clone(&ben);
-            println!("TIME = {:?}", a.borrow().time);
-            println!("RC = {}", Rc::strong_count(&ben));
-            {
-                let _b = Rc::clone(&ben);
-                println!("RC = {}", Rc::strong_count(&ben));
-            }
-            ben.borrow_mut().tick();
+        thread::sleep(Duration::from_millis(20));
+        let (happy, _detail) = hc0.status();
+        assert!(!happy);
+        hp0.tick();
+        let (happy, detail) = hc0.status();
+        assert!(!happy);
+        assert!(detail[&hp0.name]);
+        assert!(!detail[&hp1.name]);
 
-            println!("RC = {}", Rc::strong_count(&ben));
-            println!("TIME = {:?}", a.borrow().time);
-        }
+        hp1.tick();
 
-        if false {
-            // This breaks the mut and immute at same time rules
-            let ben = RefCell::new(HealthProbe::new(
-                "HealthCheck",
-                Duration::from_millis(15),
-            ));
-
-            let a = ben.borrow();
-            println!("TIME = {:?}", a);
-            // println!("RC = {}", Rc::strong_count(&ben));
-            {
-                let b = ben.borrow();
-                println!("RC = {:?}", b);
-            }
-            ben.borrow_mut().tick();
-
-            println!("TIME = {:?}", a);
-        }
-
-        println!("DONE");
+        let (happy, detail) = hc0.status();
+        assert!(happy);
+        assert!(detail[&hp0.name]);
+        assert!(detail[&hp1.name]);
     }
 
-    #[test]
-    fn monkey() {
-        println!("monkey");
-    }
 }

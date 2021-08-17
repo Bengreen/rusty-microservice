@@ -4,13 +4,9 @@
 // which the most flexible, but also most verbose.
 use clap::{App, Arg};
 
-mod lib;
-mod tcpthread;
 mod k8slifecycle;
 mod uservice;
-mod multiread;
 use crate::uservice::{UServiceConfig};
-use crate::lib::simple_listen;
 
 fn main() {
     let matches = App::new("K8s Rust uService")
@@ -94,10 +90,6 @@ fn main() {
             println!("Starting");
 
             uservice::start(&UServiceConfig{name: String::from("simple")});
-        }
-        Some(("listen", _listen_matches)) => {
-            println!("listening");
-            simple_listen();
         }
         Some(("dev", _dev_matches)) => {
             println!("DEV system");
