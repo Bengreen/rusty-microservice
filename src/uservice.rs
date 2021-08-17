@@ -1,6 +1,4 @@
 use crate::k8slifecycle::{HealthCheck, HealthProbe};
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::Duration;
 use crate::k8slifecycle::health_listen;
 
@@ -12,10 +10,10 @@ pub fn start(config: &UServiceConfig) {
     println!("uService: Start");
     let mut liveness = HealthCheck::new("liveness");
 
-    let probe0 = Rc::new(RefCell::new(HealthProbe::new(
-        "HealthCheck",
-        Duration::from_secs(30),
-    )));
+    let mut probe0 = HealthProbe::new(
+        "HP0",
+        Duration::from_secs(60),
+    );
     liveness.add(&probe0);
 
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -29,7 +27,7 @@ pub fn start(config: &UServiceConfig) {
         health_listen("health", 7979, &liveness).await;
     });
 
-    probe0.borrow_mut().tick();
+    probe0.tick();
 
     println!("uService {}: Stop", config.name);
 

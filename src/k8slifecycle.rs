@@ -1,38 +1,47 @@
-use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::Ordering;
 use std::collections::HashMap;
-use std::rc::Rc;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 use warp::Filter;
+use atomic::Atomic;
+use std::thread;
 
 #[derive(Debug)]
 pub struct HealthProbe {
     name: String,
     margin: Duration,
-    time: SystemTime,
+    time: Arc<Atomic<Instant>>,
 }
 impl HealthProbe {
     pub fn new(name: &str, margin: Duration) -> HealthProbe {
         HealthProbe {
             name: name.to_string(),
             margin,
-            time: SystemTime::now(),
+            time: Arc::new(Atomic::new(Instant::now())),
         }
     }
 
     pub fn tick(&mut self) {
-        self.time = SystemTime::now();
-    }
-    fn name(&self) -> &str {
-        &self.name
+        self.time.store(Instant::now(), Ordering::SeqCst);
     }
     fn valid(&self) -> bool {
-        self.time + self.margin >= SystemTime::now()
+        self.time.load(Ordering::SeqCst).elapsed() <= self.margin
+    }
+}
+impl Clone for HealthProbe {
+    fn clone(&self) -> HealthProbe {
+        HealthProbe{
+            name: self.name.clone(),
+            margin: self.margin,
+            time: self.time.clone(),
+        }
     }
 }
 
+#[derive(Clone)]
 pub struct HealthCheck {
     name: String,
-    probelist: Vec<Rc<RefCell<HealthProbe>>>,
+    probe_list: Arc<Mutex<Vec<HealthProbe>>>,
 }
 
 impl HealthCheck {
@@ -41,31 +50,27 @@ impl HealthCheck {
 
         HealthCheck {
             name: name.to_string(),
-            probelist: Vec::new(),
+            probe_list: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
-    pub fn add(&mut self, probe: &Rc<RefCell<HealthProbe>>) {
-        self.probelist.push(Rc::clone(probe));
-        // self.probelist.last_mut().unwrap()
+    pub fn add(&mut self, probe: &HealthProbe) {
+        self.probe_list.lock().unwrap().push(probe.clone());
     }
 
     pub fn status(&self) -> (bool, HashMap<String, bool>) {
         let mut happy = true;
 
         let detail: HashMap<_, _> = self
-            .probelist
+            .probe_list.lock().unwrap()
             .iter()
             .map(|x| {
-                let tempme = x.borrow();
-                if !tempme.valid() {
+                if !x.valid() {
                     happy = false;
                 }
-                // println!("Looking at {}", tempme.name);
-                (tempme.name.clone(), tempme.valid())
+                (x.name.clone(), x.valid())
             })
             .collect();
-        // println!("Looking at this {:?}", xxx);
         (happy, detail)
     }
     // fn add<'a>(&'a mut self, probe: impl HealthProbeProbe + 'a) {
@@ -73,43 +78,54 @@ impl HealthCheck {
     // }
 }
 
-// use std::net::{ToSocketAddrs, SocketAddr};
 
-pub async fn health_listen(basepath: &'static str , port: u16, _liveness: &HealthCheck) {
+pub async fn health_listen(basepath: &'static str , port: u16, liveness: &HealthCheck) {
     println!("Starting Health http on {}", port);
 
-    let k8s_alive = warp::path!("alive").map(|| {
-        println!("Requesting for alive");
-        // let ben = liveness.status();
+    let api = filters::health(liveness.clone());
 
-        // println!("liveness status = {:?}", ben);
-        format!("Alive")
-    });
-    let k8s_ready = warp::path!("ready").map(|| {
-        println!("Requesting for ready");
-        format!("Ready")
-    });
-    let metrics = warp::path!("metrics").map(|| {
-        println!("Requesting for metrics");
-        format!("Metrics")
-    });
+    let routes = api.with(warp::log("health"));
 
-    // let hello = warp::path!("hello" / String).map(|name| {
-    //     println!("got here for {}", name);
-    //     format!("Hello, {}!", name)
-    // });
-
-    let routes = warp::path(basepath).and(
-        warp::get().and(
-            k8s_alive
-            .or(k8s_ready)
-            .or(metrics)
-        ));
-
-    println!("wait here");
+    println!("Starting health service");
     warp::serve(routes).run(([0, 0, 0, 0], port)).await;
-    println!("AND HERE");
 }
+
+
+
+mod filters {
+    use warp::Filter;
+    use crate::k8slifecycle::HealthCheck;
+    use super::handlers;
+
+    pub fn health(liveness: HealthCheck) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+        liveness_check(liveness.clone())
+    }
+
+    pub fn liveness_check(
+        liveness: HealthCheck
+    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+        warp::path!("alive")
+            .and(warp::get())
+            .and(with_liveness(liveness))
+            .and_then(handlers::liveness)
+    }
+
+    fn with_liveness(liveness: HealthCheck) -> impl Filter<Extract = (HealthCheck,), Error = std::convert::Infallible> + Clone {
+        warp::any().map(move || liveness.clone())
+    }
+}
+
+mod handlers {
+    use std::convert::Infallible;
+    use warp::http::StatusCode;
+    use crate::k8slifecycle::HealthCheck;
+
+    pub async fn liveness(liveness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
+        let (happy, detail) = liveness.status();
+        Ok(warp::reply::with_status(warp::reply::json(&detail), if happy {StatusCode::OK} else {StatusCode::REQUEST_TIMEOUT}))
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

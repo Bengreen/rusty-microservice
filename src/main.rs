@@ -8,6 +8,7 @@ mod lib;
 mod tcpthread;
 mod k8slifecycle;
 mod uservice;
+mod multiread;
 use crate::uservice::{UServiceConfig};
 use crate::lib::simple_listen;
 

@@ -5,6 +5,10 @@ pub fn greeting(name: &str) -> String {
     format!("Hello {}!", name)
 }
 
+
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -14,6 +18,8 @@ mod tests {
         let result = greeting("Carol");
         assert!(result.contains("Carol"));
     }
+
+
 }
 
 pub fn simple_listen() {
