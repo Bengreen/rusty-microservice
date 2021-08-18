@@ -75,10 +75,15 @@ impl HealthCheck {
 }
 
 
-pub async fn health_listen(basepath: &'static str , port: u16, liveness: &HealthCheck) {
-    println!("Starting Health http on {}", port);
+pub async fn health_listen<'a>(
+    basepath: &'static str,
+    port: u16,
+    liveness: &'a HealthCheck,
+    readyness: &'a HealthCheck,
+) {
+    println!("Starting health http on {}", port);
 
-    let api = filters::health(basepath, liveness.clone());
+    let api = filters::health(basepath, liveness.clone(), readyness.clone());
 
     let routes = api.with(warp::log("health"));
 
@@ -92,25 +97,37 @@ mod filters {
     use crate::k8slifecycle::HealthCheck;
     use super::handlers;
 
-    pub fn health(basepath: &'static str, liveness: HealthCheck) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        liveness_check(basepath, liveness.clone())
+    pub fn health(
+        basepath: &'static str,
+        liveness: HealthCheck,
+        readyness: HealthCheck,
+    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+        warp::path(basepath)
+            .and(
+                liveness_check(liveness.clone())
+                .or(readyness_check(readyness.clone()))
+            )
     }
 
     pub fn liveness_check(
-        basepath: &'static str,
-        liveness: HealthCheck
+        liveness: HealthCheck,
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        // warp::path!("basename" / "alive")
-        warp::path(basepath)
+        warp::get()
             .and(warp::path!("alive"))
-            // .and(warp::path::end())
-            .and(warp::get())
-            .and(with_liveness(liveness))
+            .and(with_heathcheck(liveness))
             .and_then(handlers::liveness)
     }
+    pub fn readyness_check(
+        readyness: HealthCheck,
+    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+        warp::get()
+            .and(warp::path!("ready"))
+            .and(with_heathcheck(readyness))
+            .and_then(handlers::readyness)
+    }
 
-    fn with_liveness(liveness: HealthCheck) -> impl Filter<Extract = (HealthCheck,), Error = std::convert::Infallible> + Clone {
-        warp::any().map(move || liveness.clone())
+    fn with_heathcheck(hc: HealthCheck) -> impl Filter<Extract = (HealthCheck,), Error = std::convert::Infallible> + Clone {
+        warp::any().map(move || hc.clone())
     }
 }
 
@@ -120,9 +137,13 @@ mod handlers {
     use crate::k8slifecycle::HealthCheck;
 
     pub async fn liveness(liveness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
-        println!("Checking alive");
         let (happy, detail) = liveness.status();
-
+        println!("Liveness: {}", if happy {"OK"} else {"Fail"});
+        Ok(warp::reply::with_status(warp::reply::json(&detail), if happy {StatusCode::OK} else {StatusCode::REQUEST_TIMEOUT}))
+    }
+    pub async fn readyness(readyness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
+        let (happy, detail) = readyness.status();
+        println!("Readyness: {}", if happy {"OK"} else {"Fail"});
         Ok(warp::reply::with_status(warp::reply::json(&detail), if happy {StatusCode::OK} else {StatusCode::REQUEST_TIMEOUT}))
     }
 }
