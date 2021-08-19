@@ -9,17 +9,19 @@ RUN USER=root cargo new ${APP_NAME}
 WORKDIR /usr/src/${APP_NAME}
 COPY Cargo.toml Cargo.lock ./
 RUN cargo update && \
-    cargo build --release
-# Not sure if having cargo build here does provide any cacing or not
+    cargo build --release --target x86_64-unknown-linux-musl
 
 COPY src ./src/
+RUN touch src/*
 
-RUN cargo build --release
+RUN cargo build --release --target x86_64-unknown-linux-musl
+RUN strip target/x86_64-unknown-linux-musl/release/${APP_NAME}
 
-# RUN cargo install --target x86_64-unknown-linux-musl --path .
+
 FROM scratch
 ARG APP_NAME=rust_hello
-COPY --from=build /usr/src/${APP_NAME}/target/release/${APP_NAME} .
+COPY --from=build /usr/src/${APP_NAME}/target/x86_64-unknown-linux-musl/release/${APP_NAME} .
+# RUN cp  /usr/src/${APP_NAME}/target/release/${APP_NAME} /
 USER 1000
 
 CMD ["/rust_hello", "start"]
