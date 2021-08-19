@@ -11,5 +11,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: 7979
+      targetPort: health-port
+      protocol: TCP
+      name: health-port
   selector:
     {{- include "hello.selectorLabels" . | nindent 4 }}

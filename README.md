@@ -8,11 +8,11 @@ Create a small runtime that implements the following.
  * [ ] YAML config with validation
  * [x] Docker ised build
  * [x] Minimal scratch published container
-  * [ ] Follow https://github.com/johnthagen/min-sized-rust
-  * [x] Implement strip on binary
-  * [x] Implement lto on compile
+    * [ ] Follow https://github.com/johnthagen/min-sized-rust
+    * [x] Implement strip on binary
+    * [x] Implement lto on compile
  * [x] respond to k8s lifecycle hooks
- * [ ] Prometheus metrics
+ * [x] Prometheus metrics
 
 
 

@@ -25,5 +25,14 @@ docker-shell: docker
 docker-tag: docker
 	docker tag rust_hello:latest rust_hello:1.0.0
 
-kubectl-restart:
+rollout:
 	kubectl rollout restart deployment hello
+
+bloat:
+	cargo bloat --release -n 10
+
+docs:
+	@cargo doc --no-deps
+
+style-check:
+	cargo fmt --all -- --check

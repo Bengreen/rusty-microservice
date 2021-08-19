@@ -12,7 +12,7 @@ async fn simple_loop(probe: &HealthProbe) {
     let mut probe = probe.clone();
     loop {
         probe.tick();
-        println!("in loop ");
+        println!("in loop");
         sleep(Duration::from_secs(30)).await
     }
 }
@@ -42,8 +42,5 @@ pub fn start(config: &UServiceConfig) {
         );
     });
 
-    // probe0.tick();
-
     println!("uService {}: Stop", config.name);
-
 }
