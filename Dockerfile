@@ -16,10 +16,10 @@ COPY src ./src/
 
 RUN cargo build --release
 
-RUN cargo install --target x86_64-unknown-linux-musl --path .
-
+# RUN cargo install --target x86_64-unknown-linux-musl --path .
 FROM scratch
-COPY --from=build /usr/local/cargo/bin/${APP_NAME} .
+ARG APP_NAME=rust_hello
+COPY --from=build /usr/src/${APP_NAME}/target/release/${APP_NAME} .
 USER 1000
 
 CMD ["/rust_hello", "start"]
