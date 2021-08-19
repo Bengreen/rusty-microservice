@@ -26,7 +26,7 @@ pub fn start(config: &UServiceConfig) {
     // This creates the async functions from a non-awsync function
     rt.block_on(async {
         // ToDo: Look at this for clue on how to run on LocalSet : https://docs.rs/tokio/1.9.0/tokio/task/struct.LocalSet.html
-        health_listen("health", 7979, &liveness, &readyness).await;
+        tokio::join!(health_listen("health", 7979, &liveness, &readyness));
     });
 
     // probe0.tick();
