@@ -1,7 +1,8 @@
 use crate::k8slifecycle::{HealthCheck, HealthProbe};
 use std::time::Duration;
-use crate::k8slifecycle::health_listen;
 use tokio::time::sleep;
+use crate::k8slifecycle::health_listen;
+use crate::sampleservice::sample_listen;
 
 pub struct UServiceConfig {
         pub name: String,
@@ -39,6 +40,7 @@ pub fn start(config: &UServiceConfig) {
         tokio::join!(
             health_listen("health", 7979, &liveness, &readyness),
             simple_loop(&time_loop),
+            sample_listen("sample", 8080),
         );
     });
 

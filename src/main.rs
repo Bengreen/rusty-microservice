@@ -5,7 +5,10 @@
 use clap::{App, Arg};
 
 mod k8slifecycle;
+mod sampleservice;
+
 mod uservice;
+
 use crate::uservice::{UServiceConfig};
 
 fn main() {

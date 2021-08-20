@@ -1,6 +1,5 @@
 # Minimal K8s App
 
-
 Create a small runtime that implements the following.
  * [x] CLI parsing and starting
  * [x] readiness/liveness
@@ -13,6 +12,7 @@ Create a small runtime that implements the following.
     * [x] Implement lto on compile
  * [x] respond to k8s lifecycle hooks
  * [x] Prometheus metrics
+ * [ ] Web service with metrics and logs
 
 
 
@@ -34,4 +34,9 @@ Using warp to provide http services for liveness/readyness.
 
 # Minimise size of Build
 Follow instructions at https://github.com/johnthagen/min-sized-rust
+Size for minimal service with liveness, readyness and prometheus metrics = 3.26MB (docker image)
 
+# Add Minimal Web Service
+Web service to include minimal serving functions.
+Web service to capture prometheus metrics
+Web service to write logs
