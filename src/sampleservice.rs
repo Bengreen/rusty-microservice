@@ -10,11 +10,10 @@ mod filters {
         warp::path(basepath)
         .and(
             sample_1()
-                .or(sample_1()) // Do not know why this is required and a single item does not work
         )
     }
 
-    pub fn sample_1() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    pub fn sample_1() -> impl Filter<Extract = (impl warp::Reply, ), Error = warp::Rejection> + Clone {
         warp::get()
             .and(warp::path!("sample1"))
             .and_then(handlers::sample_h)

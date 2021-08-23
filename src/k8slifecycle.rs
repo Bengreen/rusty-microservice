@@ -79,7 +79,7 @@ pub struct HealthCheck {
 
 impl HealthCheck {
     pub fn new(name: &str) -> HealthCheck {
-        println!("Creating HealthCheck");
+        println!("Creating HealthCheck: {}", name);
 
         HealthCheck {
             name: name.to_string(),
@@ -149,7 +149,7 @@ mod filters {
 
     pub fn liveness_check(
         liveness: HealthCheck,
-    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         warp::get()
             .and(warp::path!("alive"))
             .and(with_heathcheck(liveness))
@@ -157,13 +157,13 @@ mod filters {
     }
     pub fn readyness_check(
         readyness: HealthCheck,
-    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         warp::get()
             .and(warp::path!("ready"))
             .and(with_heathcheck(readyness))
             .and_then(handlers::readyness)
     }
-    pub fn prometheus_metrics() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    pub fn prometheus_metrics() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         warp::get()
             .and(warp::path("metrics"))
             // .and(with_metrics())
