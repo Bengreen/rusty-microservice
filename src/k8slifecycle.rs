@@ -6,6 +6,7 @@ use warp::Filter;
 use atomic::Atomic;
 use lazy_static::lazy_static;
 use prometheus::{HistogramVec, HistogramOpts, IntCounter,IntCounterVec, Opts, Registry};
+use crate::uservice::HandleChannel;
 
 lazy_static! {
 
@@ -114,7 +115,7 @@ pub async fn health_listen<'a>(
     port: u16,
     liveness: &'a HealthCheck,
     readyness: &'a HealthCheck,
-) {
+) -> HandleChannel {
     println!("Starting health http on {}", port);
 
     register_custom_metrics();
@@ -124,7 +125,20 @@ pub async fn health_listen<'a>(
     let routes = api.with(warp::log("health"));
 
     println!("Starting health service");
-    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+
+    // let (channel, rx) = oneshot::channel();
+    // let (tx2, rx2) = std::sync::mpsc::channel::<()>();
+    let (channel, rx) = std::sync::mpsc::channel();
+
+    let (_addr, server) = warp::serve(routes)
+        .bind_with_graceful_shutdown(([0, 0, 0, 0], port), async move {
+            // rx.await.ok();
+            rx.recv().unwrap();
+        });
+
+    let handle = tokio::task::spawn(server);
+
+    HandleChannel{handle, channel}
 }
 
 
@@ -230,6 +244,7 @@ mod handlers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
 
     #[test]
     fn health_probe_ticking() {

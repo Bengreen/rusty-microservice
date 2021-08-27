@@ -1,4 +1,5 @@
 use warp::Filter;
+use crate::uservice::HandleChannel;
 
 mod filters {
     use warp::Filter;
@@ -32,15 +33,23 @@ mod handlers {
 pub async fn sample_listen<'a>(
     basepath: &'static str,
     port: u16,
-) {
+) -> HandleChannel {
     println!("Starting sample service http on {}", port);
 
     let api = filters::sample(basepath);
 
     let routes = api.with(warp::log("sample"));
+    let (channel, rx) = std::sync::mpsc::channel();
 
-    println!("Starting sample service");
-    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+    let (_addr, server) = warp::serve(routes)
+        .bind_with_graceful_shutdown(([0, 0, 0, 0], port), async move {
+            rx.recv().unwrap();
+        }
+    );
+
+    let handle = tokio::task::spawn(server);
+
+    HandleChannel{handle, channel}
 }
 
 
