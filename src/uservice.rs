@@ -1,3 +1,7 @@
+
+//! Create a micro service
+
+
 use crate::k8slifecycle::{HealthCheck, HealthProbe};
 use std::time::Duration;
 use tokio::time::sleep;
@@ -45,8 +49,10 @@ impl UService {
 
     pub fn shutdown(channels: &Arc<Mutex<Vec<std::sync::mpsc::Sender<()>>>>) {
         for channel in channels.lock().unwrap().iter() {
-            channel.send(()).unwrap();
-            println!("Sending shutdown signal");
+            match channel.send(()) {
+                Ok(_v) => println!("Shutdown signal sent"),
+                Err(e) => println!("Error sending close signal: {:?}", e),
+            }
         }
     }
 
@@ -98,13 +104,21 @@ pub fn start(config: &UServiceConfig) {
 
     let uservice = UService::new(&config.name);
 
-    let channels = uservice.channels.clone();
-    let signal = unsafe {
-        signal_hook::low_level::register(signal_hook::consts::SIGTERM, move || {
-            println!("got signal");
-            UService::shutdown(&channels);
-        })
-    }.expect("Register SIGTERM");
+
+    let register_signal = |signal| {
+        let channels_register = uservice.channels.clone();
+        unsafe {
+            signal_hook::low_level::register(signal, move || {
+                println!("Received {} signal", signal);
+                UService::shutdown(&channels_register);
+            })
+        }.expect("Register signal")
+    };
+
+    let registered_signals = vec!(
+        register_signal(signal_hook::consts::SIGINT),
+        register_signal(signal_hook::consts::SIGTERM),
+    );
 
 
     // This creates the async functions from a non-awsync function
@@ -118,7 +132,9 @@ pub fn start(config: &UServiceConfig) {
         println!("Stopping service");
     });
 
-    signal_hook::low_level::unregister(signal);
+    for signal in registered_signals {
+        signal_hook::low_level::unregister(signal);
+    }
 
     println!("uService {}: Stop", config.name);
 }

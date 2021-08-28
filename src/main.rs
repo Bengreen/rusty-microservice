@@ -1,17 +1,32 @@
-// (Full example with detailed comments in examples/01b_quick_example.rs)
-//
-// This example demonstrates clap's "builder pattern" method of creating arguments
-// which the most flexible, but also most verbose.
+
+//! rust_hello is a minimal microservice to implement a k8s uService.
+//!
+//! The service includes:
+//!  * extensible http alive and ready checks
+//!  * prometheus export via http
+//!  * Extensible prometheus
+//!  * SIGTERM safe shutdown
+//!  * Minimal docker build
+//!
+//! Items still to be added:
+//!  * Standardised Logging
+//!
+//! Optional Features:
+//!  * kafka consumer/producer
+
+
+#![warn(missing_docs)]
+
 use clap::{App, Arg};
 
 mod k8slifecycle;
 mod sampleservice;
-
 mod uservice;
 
 use crate::uservice::{UServiceConfig};
 
 fn main() {
+    //! Capture CLI definition and call appropriate actions
     let matches = App::new("K8s Rust uService")
         .version("1.0")
         .author("B. Greene <BenJGreene+github@gmail.com>")

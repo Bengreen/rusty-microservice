@@ -1,3 +1,6 @@
+
+//! Sample microservice demonstrating lifecycle hooks and small runtime loop with health probe included.
+
 use warp::Filter;
 use crate::uservice::HandleChannel;
 

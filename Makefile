@@ -32,7 +32,7 @@ bloat:
 	cargo bloat --release -n 10
 
 docs:
-	@cargo doc --no-deps
+	@cargo doc --no-deps --open
 
 style-check:
 	cargo fmt --all -- --check

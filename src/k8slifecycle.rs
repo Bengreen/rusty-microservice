@@ -1,3 +1,7 @@
+
+//! supporting functions for a microservice
+
+
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 use std::collections::HashMap;
@@ -126,13 +130,10 @@ pub async fn health_listen<'a>(
 
     println!("Starting health service");
 
-    // let (channel, rx) = oneshot::channel();
-    // let (tx2, rx2) = std::sync::mpsc::channel::<()>();
     let (channel, rx) = std::sync::mpsc::channel();
 
     let (_addr, server) = warp::serve(routes)
         .bind_with_graceful_shutdown(([0, 0, 0, 0], port), async move {
-            // rx.await.ok();
             rx.recv().unwrap();
         });
 
