@@ -11,6 +11,7 @@ use atomic::Atomic;
 use lazy_static::lazy_static;
 use prometheus::{HistogramVec, HistogramOpts, IntCounter,IntCounterVec, Opts, Registry};
 use crate::uservice::HandleChannel;
+use tokio::sync::mpsc;
 
 lazy_static! {
 
@@ -130,11 +131,11 @@ pub async fn health_listen<'a>(
 
     println!("Starting health service");
 
-    let (channel, rx) = std::sync::mpsc::channel();
+    let (channel, mut rx) = mpsc::channel(1);
 
     let (_addr, server) = warp::serve(routes)
         .bind_with_graceful_shutdown(([0, 0, 0, 0], port), async move {
-            rx.recv().unwrap();
+            rx.recv().await;
         });
 
     let handle = tokio::task::spawn(server);

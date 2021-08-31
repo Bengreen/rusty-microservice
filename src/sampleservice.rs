@@ -3,6 +3,7 @@
 
 use warp::Filter;
 use crate::uservice::HandleChannel;
+use tokio::sync::mpsc;
 
 mod filters {
     use warp::Filter;
@@ -42,11 +43,11 @@ pub async fn sample_listen<'a>(
     let api = filters::sample(basepath);
 
     let routes = api.with(warp::log("sample"));
-    let (channel, rx) = std::sync::mpsc::channel();
+    let (channel, mut rx) = mpsc::channel(1);
 
     let (_addr, server) = warp::serve(routes)
         .bind_with_graceful_shutdown(([0, 0, 0, 0], port), async move {
-            rx.recv().unwrap();
+            rx.recv().await;
         }
     );
 
