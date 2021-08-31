@@ -117,12 +117,13 @@ pub async fn health_listen<'a>(
     port: u16,
     liveness: &'a HealthCheck,
     readyness: &'a HealthCheck,
+    channel_http_kill: tokio::sync::mpsc::Sender<()>,
 ) -> HandleChannel {
     println!("Starting health http on {}", port);
 
     register_custom_metrics();
 
-    let api = filters::health(basepath, liveness.clone(), readyness.clone());
+    let api = filters::health(basepath, liveness.clone(), readyness.clone(), channel_http_kill);
 
     let routes = api.with(warp::log("health"));
 
@@ -149,14 +150,23 @@ mod filters {
         basepath: &'static str,
         liveness: HealthCheck,
         readyness: HealthCheck,
+        channel_http_kill: tokio::sync::mpsc::Sender<()>,
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
         warp::path(basepath).and(
             liveness_check(liveness.clone())
                 .or(readyness_check(readyness.clone()))
+                .or(kill_signal(channel_http_kill))
                 .or(prometheus_metrics()),
         )
     }
-
+    pub fn kill_signal(
+        channel_http_kill: tokio::sync::mpsc::Sender<()>,
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+        warp::get()
+            .and(warp::path!("kill"))
+            .and(with_channel(channel_http_kill))
+            .and_then(handlers::kill)
+    }
     pub fn liveness_check(
         liveness: HealthCheck,
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
@@ -181,6 +191,12 @@ mod filters {
             .and_then(handlers::metrics)
     }
 
+    fn with_channel(
+        channel: tokio::sync::mpsc::Sender<()>,
+    ) -> impl Filter<Extract = (tokio::sync::mpsc::Sender<()>,), Error = std::convert::Infallible> + Clone {
+        warp::any().map(move || channel.clone())
+    }
+
     fn with_heathcheck(
         hc: HealthCheck,
     ) -> impl Filter<Extract = (HealthCheck,), Error = std::convert::Infallible> + Clone {
@@ -193,6 +209,12 @@ mod handlers {
     use crate::k8slifecycle::REGISTRY;
     use std::convert::Infallible;
     use warp::http::StatusCode;
+
+    pub async fn kill(channel: tokio::sync::mpsc::Sender<()>) -> Result<impl warp::Reply, Infallible> {
+        println!("Kill signal received");
+        channel.send(()).await.expect("Kill signal should be sent");
+        Ok("OK")
+    }
 
     pub async fn liveness(liveness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
         let (happy, detail) = liveness.status();
