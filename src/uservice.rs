@@ -1,27 +1,25 @@
-
 //! Create a micro service
 
-
-use crate::k8slifecycle::{HealthCheck, HealthProbe};
-use std::time::Duration;
-use tokio::time::sleep;
 use crate::k8slifecycle::health_listen;
+use crate::k8slifecycle::{HealthCheck, HealthProbe};
 use crate::sampleservice::sample_listen;
-use std::sync::{Arc, Mutex};
 use futures::future;
 use std::mem;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tokio::sync::mpsc;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use tokio::signal::unix::{signal, SignalKind};
+use tokio::sync::mpsc;
+use tokio::time::sleep;
 
 pub struct UServiceConfig {
-        pub name: String,
-    }
+    pub name: String,
+}
 
 #[derive(Debug)]
 pub struct HandleChannel {
     pub handle: tokio::task::JoinHandle<()>,
-    pub channel:  mpsc::Sender<()>,
+    pub channel: mpsc::Sender<()>,
 }
 
 pub struct UService {
@@ -39,8 +37,8 @@ impl UService {
                 .enable_all()
                 .build()
                 .expect("Runtime created in current thread"),
-            channels: Arc::new(Mutex::new(vec!())),
-            handles: Arc::new(Mutex::new(vec!())),
+            channels: Arc::new(Mutex::new(vec![])),
+            handles: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -59,11 +57,13 @@ impl UService {
                 Err(e) => println!("Error sending close signal: {:?}", e),
             }
         }
-
     }
 
     pub async fn join(&self) {
-        let mut handles = self.handles.lock().expect("Could not lock mutex for handles");
+        let mut handles = self
+            .handles
+            .lock()
+            .expect("Could not lock mutex for handles");
         println!("Waiting for services: {:?}", handles);
         future::join_all(mem::take(&mut *handles)).await;
         println!("Services completed");
@@ -77,8 +77,8 @@ async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
     let (channel, mut rx) = mpsc::channel(1);
     let alive = Arc::new(AtomicBool::new(true));
 
-    let handle =tokio::spawn(async move {
-        let alive_recv= alive.clone();
+    let handle = tokio::spawn(async move {
+        let alive_recv = alive.clone();
         tokio::spawn(async move {
             // Speawn a receive channel to close the loop when signal received
             let _reci = rx.recv().await;
@@ -91,24 +91,20 @@ async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
 
             probe.tick();
             sleep(loop_sleep).await;
-        };
+        }
 
         println!("Simple loop closed");
     });
 
-    HandleChannel{handle, channel}
+    HandleChannel { handle, channel }
 }
-
 
 pub fn start(config: &UServiceConfig) {
     println!("uService: Start");
     let mut liveness = HealthCheck::new("liveness");
     let readyness = HealthCheck::new("readyness");
 
-    let time_loop = HealthProbe::new(
-        "Timer",
-        Duration::from_secs(60),
-    );
+    let time_loop = HealthProbe::new("Timer", Duration::from_secs(60));
     liveness.add(&time_loop);
 
     let uservice = UService::new(&config.name);
@@ -116,8 +112,6 @@ pub fn start(config: &UServiceConfig) {
     let _guard = uservice.rt.enter();
     // This creates the async functions from a non-awsync function and uses .enter to ensure context
     uservice.rt.block_on(async {
-
-
         // ToDo: Look at this for clue on how to run on LocalSet : https://docs.rs/tokio/1.9.0/tokio/task/struct.LocalSet.html
         uservice.add(simple_loop(&time_loop).await);
         uservice.add(health_listen("health", 7979, &liveness, &readyness).await);
@@ -125,10 +119,11 @@ pub fn start(config: &UServiceConfig) {
 
         let channels_register = uservice.channels.clone();
         tokio::spawn(async move {
-            let mut sig_terminate = signal(SignalKind::terminate()).expect("Register terminate signal handler");
+            let mut sig_terminate =
+                signal(SignalKind::terminate()).expect("Register terminate signal handler");
             let mut sig_quit = signal(SignalKind::quit()).expect("Register quit signal handler");
             let mut sig_hup = signal(SignalKind::hangup()).expect("Register hangup signal handler");
-                println!("registered signal handlers");
+            println!("registered signal handlers");
             tokio::select! {
                 _ = sig_terminate.recv() => println!("Received TERM signal"),
                 _ = sig_quit.recv() => println!("Received QUIT signal"),
@@ -140,7 +135,7 @@ pub fn start(config: &UServiceConfig) {
         });
 
         uservice.join().await;
-     });
+    });
 
     println!("uService {}: Stop", config.name);
 }
@@ -148,18 +143,19 @@ pub fn start(config: &UServiceConfig) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::uservice;
     use std::thread;
     use warp::hyper::Client;
-    use crate::uservice;
 
     #[tokio::test]
     async fn service_loading() {
         println!("Loading uService");
 
-        let my_config = UServiceConfig{name: String::from("test0")};
+        let my_config = UServiceConfig {
+            name: String::from("test0"),
+        };
 
         let ben = thread::spawn(move || {
-
             uservice::start(&my_config);
             // for i in 1..10 {
             //     println!("hi number {} from the spawned thread! {}", i, my_config.name);
@@ -176,5 +172,4 @@ mod tests {
         ben.join().unwrap();
         unreachable!();
     }
-
 }

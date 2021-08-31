@@ -1,20 +1,17 @@
-
 //! supporting functions for a microservice
 
-
-use std::sync::{Arc, Mutex};
-use std::sync::atomic::Ordering;
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-use warp::Filter;
+use crate::uservice::HandleChannel;
 use atomic::Atomic;
 use lazy_static::lazy_static;
-use prometheus::{HistogramVec, HistogramOpts, IntCounter,IntCounterVec, Opts, Registry};
-use crate::uservice::HandleChannel;
+use prometheus::{HistogramOpts, HistogramVec, IntCounter, IntCounterVec, Opts, Registry};
+use std::collections::HashMap;
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
+use warp::Filter;
 
 lazy_static! {
-
     pub static ref INCOMING_REQUESTS: IntCounter =
         IntCounter::new("incoming_requests", "Incoming Requests").expect("metric can be created");
     pub static ref RESPONSE_CODE_COLLECTOR: IntCounterVec = IntCounterVec::new(
@@ -27,7 +24,6 @@ lazy_static! {
         &["env"]
     )
     .expect("metric can be created");
-
     pub static ref REGISTRY: Registry = Registry::new();
 }
 
@@ -69,7 +65,7 @@ impl HealthProbe {
 }
 impl Clone for HealthProbe {
     fn clone(&self) -> HealthProbe {
-        HealthProbe{
+        HealthProbe {
             name: self.name.clone(),
             margin: self.margin,
             time: self.time.clone(),
@@ -101,7 +97,9 @@ impl HealthCheck {
         let mut happy = true;
 
         let detail: HashMap<_, _> = self
-            .probe_list.lock().unwrap()
+            .probe_list
+            .lock()
+            .unwrap()
             .iter()
             .map(|x| {
                 if !x.valid() {
@@ -113,7 +111,6 @@ impl HealthCheck {
         (happy, detail)
     }
 }
-
 
 pub async fn health_listen<'a>(
     basepath: &'static str,
@@ -133,35 +130,32 @@ pub async fn health_listen<'a>(
 
     let (channel, mut rx) = mpsc::channel(1);
 
-    let (_addr, server) = warp::serve(routes)
-        .bind_with_graceful_shutdown(([0, 0, 0, 0], port), async move {
+    let (_addr, server) =
+        warp::serve(routes).bind_with_graceful_shutdown(([0, 0, 0, 0], port), async move {
             rx.recv().await;
         });
 
     let handle = tokio::task::spawn(server);
 
-    HandleChannel{handle, channel}
+    HandleChannel { handle, channel }
 }
 
-
 mod filters {
-    use warp::Filter;
-    use crate::k8slifecycle::HealthCheck;
     use super::handlers;
+    use crate::k8slifecycle::HealthCheck;
+    use warp::Filter;
 
     pub fn health(
         basepath: &'static str,
         liveness: HealthCheck,
         readyness: HealthCheck,
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        warp::path(basepath)
-            .and(
-                liveness_check(liveness.clone())
+        warp::path(basepath).and(
+            liveness_check(liveness.clone())
                 .or(readyness_check(readyness.clone()))
-                .or(prometheus_metrics())
-            )
+                .or(prometheus_metrics()),
+        )
     }
-
 
     pub fn liveness_check(
         liveness: HealthCheck,
@@ -179,33 +173,50 @@ mod filters {
             .and(with_heathcheck(readyness))
             .and_then(handlers::readyness)
     }
-    pub fn prometheus_metrics() -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+    pub fn prometheus_metrics(
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
         warp::get()
             .and(warp::path("metrics"))
             // .and(with_metrics())
             .and_then(handlers::metrics)
     }
 
-    fn with_heathcheck(hc: HealthCheck) -> impl Filter<Extract = (HealthCheck,), Error = std::convert::Infallible> + Clone {
+    fn with_heathcheck(
+        hc: HealthCheck,
+    ) -> impl Filter<Extract = (HealthCheck,), Error = std::convert::Infallible> + Clone {
         warp::any().map(move || hc.clone())
     }
 }
 
 mod handlers {
-    use std::convert::Infallible;
-    use warp::http::StatusCode;
     use crate::k8slifecycle::HealthCheck;
     use crate::k8slifecycle::REGISTRY;
+    use std::convert::Infallible;
+    use warp::http::StatusCode;
 
     pub async fn liveness(liveness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
         let (happy, detail) = liveness.status();
-        println!("Liveness: {}", if happy {"OK"} else {"Fail"});
-        Ok(warp::reply::with_status(warp::reply::json(&detail), if happy {StatusCode::OK} else {StatusCode::REQUEST_TIMEOUT}))
+        println!("Liveness: {}", if happy { "OK" } else { "Fail" });
+        Ok(warp::reply::with_status(
+            warp::reply::json(&detail),
+            if happy {
+                StatusCode::OK
+            } else {
+                StatusCode::REQUEST_TIMEOUT
+            },
+        ))
     }
     pub async fn readyness(readyness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
         let (happy, detail) = readyness.status();
-        println!("Readyness: {}", if happy {"OK"} else {"Fail"});
-        Ok(warp::reply::with_status(warp::reply::json(&detail), if happy {StatusCode::OK} else {StatusCode::REQUEST_TIMEOUT}))
+        println!("Readyness: {}", if happy { "OK" } else { "Fail" });
+        Ok(warp::reply::with_status(
+            warp::reply::json(&detail),
+            if happy {
+                StatusCode::OK
+            } else {
+                StatusCode::REQUEST_TIMEOUT
+            },
+        ))
     }
     pub async fn metrics() -> Result<impl warp::Reply, Infallible> {
         println!("returning metrics");
@@ -241,7 +252,6 @@ mod handlers {
         Ok(res)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -303,5 +313,4 @@ mod tests {
         assert!(detail[&hp0.name]);
         assert!(detail[&hp1.name]);
     }
-
 }

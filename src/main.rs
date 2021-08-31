@@ -1,4 +1,3 @@
-
 //! rust_hello is a minimal microservice to implement a k8s uService.
 //!
 //! The service includes:
@@ -14,7 +13,6 @@
 //! Optional Features:
 //!  * kafka consumer/producer
 
-
 #![warn(missing_docs)]
 
 use clap::{App, Arg};
@@ -23,7 +21,7 @@ mod k8slifecycle;
 mod sampleservice;
 mod uservice;
 
-use crate::uservice::{UServiceConfig};
+use crate::uservice::UServiceConfig;
 
 fn main() {
     //! Capture CLI definition and call appropriate actions
@@ -102,19 +100,18 @@ fn main() {
     match matches.subcommand() {
         Some(("parse", validate_matches)) => {
             println!("parse and validate {:?}", validate_matches);
-
         }
         Some(("start", _start_matches)) => {
             println!("Starting");
 
-            uservice::start(&UServiceConfig{name: String::from("simple")});
+            uservice::start(&UServiceConfig {
+                name: String::from("simple"),
+            });
         }
         Some(("dev", _dev_matches)) => {
             println!("DEV system");
-
         }
         None => println!("No command provided"),
         _ => unreachable!(),
     }
-
 }
