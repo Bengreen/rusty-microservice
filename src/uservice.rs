@@ -168,10 +168,6 @@ mod tests {
 
         let ben = thread::spawn(move || {
             uservice::start(&my_config);
-            // for i in 1..10 {
-            //     println!("hi number {} from the spawned thread! {}", i, my_config.name);
-            //     thread::sleep(Duration::from_millis(1));
-            // }
         });
         println!("Waiting for the 5 secs");
         std::thread::sleep(Duration::from_secs(5));
@@ -184,6 +180,5 @@ mod tests {
         send_kill().await;
 
         ben.join().unwrap();
-        // unreachable!();
     }
 }
