@@ -11,7 +11,7 @@ status:
 	@${CARGO} --version
 
 test:
-	cargo test
+	cargo test -- --nocapture
 
 run:
 	cargo run -- listen
@@ -31,8 +31,10 @@ rollout:
 bloat:
 	cargo bloat --release -n 10
 
-docs:
+doc:
 	@cargo doc --no-deps --open
+doc-watch:
+	@cargo watch -x 'doc --no-deps --open'
 
 style-check:
 	cargo fmt --all -- --check

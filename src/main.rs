@@ -8,10 +8,10 @@
 //!  * Minimal docker build
 //!
 //! Items still to be added:
-//!  * Standardised Logging
+//!  * [ ] Standardised Logging
 //!
 //! Optional Features:
-//!  * kafka consumer/producer
+//!  * [ ] kafka consumer/producer
 
 #![warn(missing_docs)]
 

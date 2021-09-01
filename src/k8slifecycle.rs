@@ -41,10 +41,17 @@ fn register_custom_metrics() {
         .expect("collector can be registered");
 }
 
+/// A structure to create kubernetes [HealthProbe]s
+///
+/// [HealthProbe]s provide the low level mechanism to instrument lifecycle checks within code. These are added to [HealthCheck]s to create a k8s health check.
+/// The [HealthCheck] is used to generate the alive or ready calls for kubernetes services.
 #[derive(Debug)]
 pub struct HealthProbe {
+    /// name of the [HealthProbe] used to make named responses to [HealthCheck]
     name: String,
+    /// Time by which the [HealthProbe] can remain un[tick](HealthProbe::tick)ed before it reports failed
     margin: Duration,
+    /// Time of last checkin
     time: Arc<Atomic<Instant>>,
 }
 impl HealthProbe {
@@ -56,9 +63,14 @@ impl HealthProbe {
         }
     }
 
+    /// Trigger an update of the [HealthProbe] keeping it wthin the time [HealthProbe::margin]
     pub fn tick(&mut self) {
         self.time.store(Instant::now(), Ordering::SeqCst);
     }
+
+    /// Check and reply if the probe is valid
+    ///
+    /// Valid means the probe has been [ticked](HealthCheck::tick) within the [HealthProbe::margin]
     fn valid(&self) -> bool {
         self.time.load(Ordering::SeqCst).elapsed() <= self.margin
     }
@@ -73,13 +85,27 @@ impl Clone for HealthProbe {
     }
 }
 
+
+/// A structure to create kubernetes health checks.
+///
+/// [HealthProbe]s can be added to it and these then must be updated at regular intervals or will result in failing the [HealthCheck].
+/// Summary information is provided via the [HealthCheck::status] fucntion to return the current state of the HealthCheck
+///
+/// The design is such that multiple [HealthProbe]s can be created and added to [HealthCheck]s each [HealthProbe] has its on time based time based configurations to enable it to be calculcated if the probe is still valid or not.
+///
+/// During operation the [HealthProbe] is updated by the service. The service does not need any direct relationship with the [HealthCheck]
+///
 #[derive(Clone)]
 pub struct HealthCheck {
+    /// A name for the [HealthCheck]
     name: String,
+    /// an internal list of the [HealthProbe]s attached to the [HealthCheck]
     probe_list: Arc<Mutex<Vec<HealthProbe>>>,
 }
 
 impl HealthCheck {
+
+    /// Create new [HealthCheck]
     pub fn new(name: &str) -> HealthCheck {
         println!("Creating HealthCheck: {}", name);
 
@@ -89,10 +115,12 @@ impl HealthCheck {
         }
     }
 
+    /// Add [HealthProbe] to [HealthCheck]
     pub fn add(&mut self, probe: &HealthProbe) {
         self.probe_list.lock().unwrap().push(probe.clone());
     }
 
+    /// get status which is a json'able object providing detail info on [HealthProbe] and a bool to summarise
     pub fn status(&self) -> (bool, HashMap<String, bool>) {
         let mut happy = true;
 
@@ -141,6 +169,7 @@ pub async fn health_listen<'a>(
     HandleChannel { handle, channel }
 }
 
+/// The filters through used to build up the http route for the k8s health system
 mod filters {
     use super::handlers;
     use crate::k8slifecycle::HealthCheck;
@@ -153,8 +182,8 @@ mod filters {
         channel_http_kill: tokio::sync::mpsc::Sender<()>,
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
         warp::path(basepath).and(
-            liveness_check(liveness.clone())
-                .or(readyness_check(readyness.clone()))
+            liveness_check(liveness)
+                .or(readyness_check(readyness))
                 .or(kill_signal(channel_http_kill))
                 .or(prometheus_metrics()),
         )
@@ -204,18 +233,23 @@ mod filters {
     }
 }
 
+/// Handlers to reply to k8s health requests
+///
+/// All health k8s health handlers are provided here. These reply to k8s alive, ready and prometheus metrics.
 mod handlers {
     use crate::k8slifecycle::HealthCheck;
     use crate::k8slifecycle::REGISTRY;
     use std::convert::Infallible;
     use warp::http::StatusCode;
 
+    /// Creates a signal to close the uservice cleanly
     pub async fn kill(channel: tokio::sync::mpsc::Sender<()>) -> Result<impl warp::Reply, Infallible> {
         println!("Kill signal received");
         channel.send(()).await.expect("Kill signal should be sent");
         Ok("OK")
     }
 
+    /// response for k8s alive check
     pub async fn liveness(liveness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
         let (happy, detail) = liveness.status();
         println!("Liveness: {}", if happy { "OK" } else { "Fail" });
@@ -228,6 +262,8 @@ mod handlers {
             },
         ))
     }
+
+    /// response for k8s readyness check
     pub async fn readyness(readyness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
         let (happy, detail) = readyness.status();
         println!("Readyness: {}", if happy { "OK" } else { "Fail" });
@@ -240,6 +276,8 @@ mod handlers {
             },
         ))
     }
+
+    /// provide [Prometheus](https://prometheus.io) metrics
     pub async fn metrics() -> Result<impl warp::Reply, Infallible> {
         println!("returning metrics");
         use prometheus::Encoder;
