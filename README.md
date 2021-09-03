@@ -13,6 +13,7 @@ Create a small runtime that implements the following.
  * [x] respond to k8s lifecycle hooks
  * [x] Prometheus metrics
  * [z] Web service with metrics and logs
+ * [ ] Benchmark to see/view performance of uService
  * [ ] Kafka support behind a feature control
 
 
@@ -41,3 +42,9 @@ Size for minimal service with liveness, readyness and prometheus metrics = 3.26M
 Web service to include minimal serving functions.
 Web service to capture prometheus metrics
 Web service to write logs
+
+# Benchmarks
+
+It may be useful to install cargo-criterion as a binary to handle some of the wrapping work for benchmarking
+
+   cargo install cargo-criterion

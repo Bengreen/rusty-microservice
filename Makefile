@@ -37,4 +37,11 @@ doc-watch:
 	@cargo watch -x 'doc --no-deps --open'
 
 style-check:
-	cargo fmt --all -- --check
+	@cargo fmt --all -- --check
+
+lint:
+	@cargo clippy
+
+benchmark:
+	@cargo criterion
+	@open target/criterion/reports/index.html

@@ -1,4 +1,6 @@
 //! Create a micro service
+pub mod k8slifecycle;
+mod sampleservice;
 
 use crate::k8slifecycle::health_listen;
 use crate::k8slifecycle::{HealthCheck, HealthProbe};
@@ -11,6 +13,8 @@ use std::time::Duration;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc;
 use tokio::time::sleep;
+use warp::hyper::Client;
+
 
 pub struct UServiceConfig {
     pub name: String,
@@ -24,7 +28,7 @@ pub struct HandleChannel {
 
 pub struct UService {
     pub name: String,
-    rt: tokio::runtime::Runtime,
+    // pub rt: tokio::runtime::Runtime,
     channels: Arc<Mutex<Vec<mpsc::Sender<()>>>>,
     handles: Arc<Mutex<Vec<tokio::task::JoinHandle<()>>>>,
 }
@@ -33,10 +37,7 @@ impl UService {
     pub fn new(name: &str) -> UService {
         UService {
             name: name.to_string(),
-            rt: tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("Runtime created in current thread"),
+
             channels: Arc::new(Mutex::new(vec![])),
             handles: Arc::new(Mutex::new(vec![])),
         }
@@ -99,64 +100,73 @@ async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
     HandleChannel { handle, channel }
 }
 
-pub fn start(config: &UServiceConfig) {
-    println!("uService: Start");
-    let mut liveness = HealthCheck::new("liveness");
-    let readyness = HealthCheck::new("readyness");
+/// Send a shutdown signal via http to close the service
+pub async fn send_http_kill() {
+    let client = Client::new();
+    let uri = "http://localhost:7979/health/kill".parse().unwrap();
+    let resp = client.get(uri).await.unwrap();
+    println!("Response: {}", resp.status());
+}
+
+pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness: &HealthCheck) {
+    // ToDo: Look at this for clue on how to run on LocalSet : https://docs.rs/tokio/1.9.0/tokio/task/struct.LocalSet.html
+    let (channel_http_kill, mut rx_http_kill) = mpsc::channel::<()>(1);
 
     let time_loop = HealthProbe::new("Timer", Duration::from_secs(60));
     liveness.add(&time_loop);
 
-    let uservice = UService::new(&config.name);
+    uservice.add(simple_loop(&time_loop).await);
+    uservice.add(health_listen("health", 7979, &liveness, &readyness, channel_http_kill).await);
+    uservice.add(sample_listen("sample", 8080).await);
 
-    let _guard = uservice.rt.enter();
-    // This creates the async functions from a non-async function and uses .enter to ensure context
-    uservice.rt.block_on(async {
-        // ToDo: Look at this for clue on how to run on LocalSet : https://docs.rs/tokio/1.9.0/tokio/task/struct.LocalSet.html
-        let (channel_http_kill, mut rx_http_kill) = mpsc::channel::<()>(1);
+    let channels_register = uservice.channels.clone();
+    tokio::spawn(async move {
+        let mut sig_terminate =
+            signal(SignalKind::terminate()).expect("Register terminate signal handler");
+        let mut sig_quit = signal(SignalKind::quit()).expect("Register quit signal handler");
+        let mut sig_hup = signal(SignalKind::hangup()).expect("Register hangup signal handler");
 
-        uservice.add(simple_loop(&time_loop).await);
-        uservice.add(health_listen("health", 7979, &liveness, &readyness, channel_http_kill).await);
-        uservice.add(sample_listen("sample", 8080).await);
+        println!("registered signal handlers");
+        tokio::select! {
+            _ = rx_http_kill.recv() => println!("Received HTTP kill signal"),
+            _ = sig_terminate.recv() => println!("Received TERM signal"),
+            _ = sig_quit.recv() => println!("Received QUIT signal"),
+            _ = sig_hup.recv() => println!("Received HUP signal"),
+        };
+        println!("Signal handler triggered to start Shutdown");
 
-        let channels_register = uservice.channels.clone();
-        tokio::spawn(async move {
-            let mut sig_terminate =
-                signal(SignalKind::terminate()).expect("Register terminate signal handler");
-            let mut sig_quit = signal(SignalKind::quit()).expect("Register quit signal handler");
-            let mut sig_hup = signal(SignalKind::hangup()).expect("Register hangup signal handler");
-
-            println!("registered signal handlers");
-            tokio::select! {
-                _ = rx_http_kill.recv() => println!("Received HTTP kill signal"),
-                _ = sig_terminate.recv() => println!("Received TERM signal"),
-                _ = sig_quit.recv() => println!("Received QUIT signal"),
-                _ = sig_hup.recv() => println!("Received HUP signal"),
-            };
-            println!("Signal handler triggered to start Shutdown");
-
-            UService::shutdown(channels_register).await;
-        });
-
-        uservice.join().await;
+        UService::shutdown(channels_register).await;
     });
+
+    uservice.join().await;
+}
+
+
+/// Start the service (including starting the runtime (ie tokio))
+pub fn start(config: &UServiceConfig) {
+    println!("uService: Start");
+    let liveness = HealthCheck::new("liveness");
+    let readyness = HealthCheck::new("readyness");
+
+    let uservice = UService::new(&config.name);
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("Runtime created in current thread");
+    let _guard = rt.enter();
+
+    rt.block_on(start_async(&uservice, &liveness, &readyness));
 
     println!("uService {}: Stop", config.name);
 }
 
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::uservice;
+    use crate::start;
     use std::thread;
-    use warp::hyper::Client;
-
-    async fn send_kill() {
-        let client = Client::new();
-        let uri = "http://localhost:7979/health/kill".parse().unwrap();
-        let resp = client.get(uri).await.unwrap();
-        println!("Response: {}", resp.status());
-    }
 
     #[tokio::test]
     async fn service_loading() {
@@ -167,7 +177,7 @@ mod tests {
         };
 
         let ben = thread::spawn(move || {
-            uservice::start(&my_config);
+            start(&my_config);
         });
         println!("Waiting for the 5 secs");
         std::thread::sleep(Duration::from_secs(5));
@@ -177,8 +187,10 @@ mod tests {
         let resp = client.get(uri).await.unwrap();
         println!("Response: {}", resp.status());
 
-        send_kill().await;
+        send_http_kill().await;
 
         ben.join().unwrap();
     }
+
+
 }

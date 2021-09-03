@@ -1,6 +1,6 @@
 //! supporting functions for a microservice
 
-use crate::uservice::HandleChannel;
+use crate::HandleChannel;
 use atomic::Atomic;
 use lazy_static::lazy_static;
 use prometheus::{HistogramOpts, HistogramVec, IntCounter, IntCounterVec, Opts, Registry};
@@ -116,7 +116,7 @@ impl HealthCheck {
     }
 
     /// Add [HealthProbe] to [HealthCheck]
-    pub fn add(&mut self, probe: &HealthProbe) {
+    pub fn add(&self, probe: &HealthProbe) {
         self.probe_list.lock().unwrap().push(probe.clone());
     }
 
@@ -346,7 +346,7 @@ mod tests {
         let mut hp0 = HealthProbe::new("HealthCheck0", Duration::from_millis(15));
         let mut hp1 = HealthProbe::new("HealthCheck1", Duration::from_millis(15));
 
-        let mut hc0 = HealthCheck::new("simple");
+        let hc0 = HealthCheck::new("simple");
 
         hc0.add(&hp0);
         hc0.add(&hp1);

@@ -17,11 +17,8 @@
 
 use clap::{App, Arg};
 
-mod k8slifecycle;
-mod sampleservice;
-mod uservice;
 
-use crate::uservice::UServiceConfig;
+use rustyhello::{UServiceConfig, start};
 
 fn main() {
     //! Capture CLI definition and call appropriate actions
@@ -104,7 +101,7 @@ fn main() {
         Some(("start", _start_matches)) => {
             println!("Starting");
 
-            uservice::start(&UServiceConfig {
+            start(&UServiceConfig {
                 name: String::from("simple"),
             });
         }
