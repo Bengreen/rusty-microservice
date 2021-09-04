@@ -26,9 +26,12 @@ mod filters {
 mod handlers {
     use std::convert::Infallible;
     use log::{info};
+    use tokio::time::{sleep, Duration};
 
     pub async fn sample_h() -> Result<impl warp::Reply, Infallible> {
-        info!("Sample:");
+        info!("Sample called");
+        let wait: u8 = rand::random();
+        sleep(Duration::from_millis(u64::from(100+wait/5))).await; // simulate some random work
         Ok("Sample")
     }
 }
