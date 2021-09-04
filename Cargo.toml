@@ -37,4 +37,4 @@ path = "src/lib.rs"
 [[bench]]
 name = "example"
 harness = false
-
+path = "benches"
