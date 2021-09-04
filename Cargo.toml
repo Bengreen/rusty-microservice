@@ -14,6 +14,9 @@ atomic = "0.5"
 prometheus = { version = "0.12.0", features = ["process"] }
 lazy_static = "1.4"
 futures = "0.3.16"
+env_logger = "0.9.0"
+log = {version = "0.4.14", features = ["release_max_level_warn"]}
+
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }

@@ -14,6 +14,7 @@ use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc;
 use tokio::time::sleep;
 use warp::hyper::Client;
+use log::{info};
 
 
 pub struct UServiceConfig {
@@ -54,8 +55,8 @@ impl UService {
         for channel in ben.iter() {
             let channel_rx = channel.send(()).await;
             match channel_rx {
-                Ok(_v) => println!("Shutdown signal sent"),
-                Err(e) => println!("Error sending close signal: {:?}", e),
+                Ok(_v) => info!("Shutdown signal sent"),
+                Err(e) => info!("Error sending close signal: {:?}", e),
             }
         }
     }
@@ -65,9 +66,9 @@ impl UService {
             .handles
             .lock()
             .expect("Could not lock mutex for handles");
-        println!("Waiting for services: {:?}", handles);
+        info!("Waiting for services: {:?}", handles);
         future::join_all(mem::take(&mut *handles)).await;
-        println!("Services completed");
+        info!("Services completed");
     }
 }
 
@@ -84,17 +85,17 @@ async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
             // Speawn a receive channel to close the loop when signal received
             let _reci = rx.recv().await;
             alive_recv.store(false, Ordering::Relaxed);
-            println!("Setting Loop close stop");
+            info!("Setting Loop close stop");
         });
 
         while alive.load(Ordering::Relaxed) {
-            println!("in loop");
+            info!("in loop");
 
             probe.tick();
             sleep(loop_sleep).await;
         }
 
-        println!("Simple loop closed");
+        info!("Simple loop closed");
     });
 
     HandleChannel { handle, channel }
@@ -105,7 +106,7 @@ pub async fn send_http_kill() {
     let client = Client::new();
     let uri = "http://localhost:7979/health/kill".parse().unwrap();
     let resp = client.get(uri).await.unwrap();
-    println!("Response: {}", resp.status());
+    info!("Kill Response: {}", resp.status());
 }
 
 pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness: &HealthCheck) {
@@ -126,14 +127,14 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
         let mut sig_quit = signal(SignalKind::quit()).expect("Register quit signal handler");
         let mut sig_hup = signal(SignalKind::hangup()).expect("Register hangup signal handler");
 
-        println!("registered signal handlers");
+        info!("registered signal handlers");
         tokio::select! {
-            _ = rx_http_kill.recv() => println!("Received HTTP kill signal"),
-            _ = sig_terminate.recv() => println!("Received TERM signal"),
-            _ = sig_quit.recv() => println!("Received QUIT signal"),
-            _ = sig_hup.recv() => println!("Received HUP signal"),
+            _ = rx_http_kill.recv() => info!("Received HTTP kill signal"),
+            _ = sig_terminate.recv() => info!("Received TERM signal"),
+            _ = sig_quit.recv() => info!("Received QUIT signal"),
+            _ = sig_hup.recv() => info!("Received HUP signal"),
         };
-        println!("Signal handler triggered to start Shutdown");
+        info!("Signal handler triggered to start Shutdown");
 
         UService::shutdown(channels_register).await;
     });
@@ -144,7 +145,8 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
 
 /// Start the service (including starting the runtime (ie tokio))
 pub fn start(config: &UServiceConfig) {
-    println!("uService: Start");
+
+    info!("uService: Start");
     let liveness = HealthCheck::new("liveness");
     let readyness = HealthCheck::new("readyness");
 
@@ -157,7 +159,7 @@ pub fn start(config: &UServiceConfig) {
 
     rt.block_on(start_async(&uservice, &liveness, &readyness));
 
-    println!("uService {}: Stop", config.name);
+    info!("uService {}: Stop", config.name);
 }
 
 

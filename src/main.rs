@@ -16,7 +16,8 @@
 #![warn(missing_docs)]
 
 use clap::{App, Arg};
-
+use env_logger::Env;
+use log::{info};
 
 use rustyhello::{UServiceConfig, start};
 
@@ -94,12 +95,15 @@ fn main() {
         }
     }
 
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+
     match matches.subcommand() {
         Some(("parse", validate_matches)) => {
             println!("parse and validate {:?}", validate_matches);
         }
         Some(("start", _start_matches)) => {
-            println!("Starting");
+            info!("Calling start");
 
             start(&UServiceConfig {
                 name: String::from("simple"),

@@ -3,6 +3,7 @@
 use crate::HandleChannel;
 use tokio::sync::mpsc;
 use warp::Filter;
+use log::{info};
 
 mod filters {
     use super::handlers;
@@ -24,15 +25,16 @@ mod filters {
 
 mod handlers {
     use std::convert::Infallible;
+    use log::{info};
 
     pub async fn sample_h() -> Result<impl warp::Reply, Infallible> {
-        println!("Sample:");
+        info!("Sample:");
         Ok("Sample")
     }
 }
 
 pub async fn sample_listen<'a>(basepath: &'static str, port: u16) -> HandleChannel {
-    println!("Starting sample service http on {}", port);
+    info!("Starting sample service http on {}", port);
 
     let api = filters::sample(basepath);
 

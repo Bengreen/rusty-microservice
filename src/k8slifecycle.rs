@@ -10,6 +10,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use warp::Filter;
+use log::{info};
+
 
 lazy_static! {
     pub static ref INCOMING_REQUESTS: IntCounter =
@@ -107,7 +109,7 @@ impl HealthCheck {
 
     /// Create new [HealthCheck]
     pub fn new(name: &str) -> HealthCheck {
-        println!("Creating HealthCheck: {}", name);
+        info!("Creating HealthCheck: {}", name);
 
         HealthCheck {
             name: name.to_string(),
@@ -147,7 +149,7 @@ pub async fn health_listen<'a>(
     readyness: &'a HealthCheck,
     channel_http_kill: tokio::sync::mpsc::Sender<()>,
 ) -> HandleChannel {
-    println!("Starting health http on {}", port);
+    info!("Starting health http on {}", port);
 
     register_custom_metrics();
 
@@ -155,7 +157,7 @@ pub async fn health_listen<'a>(
 
     let routes = api.with(warp::log("health"));
 
-    println!("Starting health service");
+    info!("Starting health service");
 
     let (channel, mut rx) = mpsc::channel(1);
 
@@ -241,10 +243,11 @@ mod handlers {
     use crate::k8slifecycle::REGISTRY;
     use std::convert::Infallible;
     use warp::http::StatusCode;
+    use log::{info, debug};
 
     /// Creates a signal to close the uservice cleanly
     pub async fn kill(channel: tokio::sync::mpsc::Sender<()>) -> Result<impl warp::Reply, Infallible> {
-        println!("Kill signal received");
+        info!("Kill signal received");
         channel.send(()).await.expect("Kill signal should be sent");
         Ok("OK")
     }
@@ -252,7 +255,7 @@ mod handlers {
     /// response for k8s alive check
     pub async fn liveness(liveness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
         let (happy, detail) = liveness.status();
-        println!("Liveness: {}", if happy { "OK" } else { "Fail" });
+        debug!("Liveness: {}", if happy { "OK" } else { "Fail" });
         Ok(warp::reply::with_status(
             warp::reply::json(&detail),
             if happy {
@@ -266,7 +269,7 @@ mod handlers {
     /// response for k8s readyness check
     pub async fn readyness(readyness: HealthCheck) -> Result<impl warp::Reply, Infallible> {
         let (happy, detail) = readyness.status();
-        println!("Readyness: {}", if happy { "OK" } else { "Fail" });
+        debug!("Readyness: {}", if happy { "OK" } else { "Fail" });
         Ok(warp::reply::with_status(
             warp::reply::json(&detail),
             if happy {
@@ -279,7 +282,7 @@ mod handlers {
 
     /// provide [Prometheus](https://prometheus.io) metrics
     pub async fn metrics() -> Result<impl warp::Reply, Infallible> {
-        println!("returning metrics");
+        debug!("Returning metrics");
         use prometheus::Encoder;
         let encoder = prometheus::TextEncoder::new();
         let mut buffer = Vec::new();
