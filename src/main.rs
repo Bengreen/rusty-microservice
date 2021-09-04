@@ -44,6 +44,7 @@ fn main() {
         )
         .subcommand(App::new("validate").about("Validate input yaml"))
         .subcommand(App::new("start").about("Start service"))
+        .subcommand(App::new("version").about("Version info"))
         .subcommand(App::new("dev").about("Dev service"))
         .subcommand(
             App::new("test")
@@ -99,6 +100,12 @@ fn main() {
 
 
     match matches.subcommand() {
+        Some(("version", _version_matches)) => {
+            const NAME: &str = env!("CARGO_PKG_NAME");
+            println!("Name: {}", NAME);
+            const VERSION: &str = env!("CARGO_PKG_VERSION");
+            println!("Version: {}", VERSION);
+        }
         Some(("parse", validate_matches)) => {
             println!("parse and validate {:?}", validate_matches);
         }
