@@ -8,6 +8,7 @@ Create a small runtime that implements the following.
  * [x] Docker ised build
  * [x] Minimal scratch published container
     * [ ] Follow https://github.com/johnthagen/min-sized-rust
+    * [ ] Compare: https://users.rust-lang.org/t/why-does-rust-binary-take-so-much-space/41088/16
     * [x] Implement strip on binary
     * [x] Implement lto on compile
  * [x] respond to k8s lifecycle hooks

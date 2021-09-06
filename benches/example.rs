@@ -1,19 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 use rustyhello::{UServiceConfig, UService, start_async, send_http_kill};
 use rustyhello::k8slifecycle::{HealthCheck};
-
-fn fibonacci(n: u64) -> u64 {
-    match n {
-        0 => 1,
-        1 => 1,
-        n => fibonacci(n-1) + fibonacci(n-2),
-    }
-}
-
-// pub fn criterion_benchmark(c: &mut Criterion) {
-//     c.bench_function("fib 20", |b| b.iter(|| fibonacci(black_box(20))));
-// }
 
 
 
@@ -81,15 +69,18 @@ pub fn http_benchmark(c: &mut Criterion) {
         });
     });
 
+
+
     c.bench_function("http sample concurrent", |b| {
-        let concurrency  = 3;
+        let concurrency  = 100;
 
         b.to_async(&rt_b).iter(|| async {
             let mut parallel = Vec::new();
+
             for _i in 0..concurrency {
                 parallel.push(async {
                         let resp = client.get(uri.clone()).await.unwrap();
-                        resp.status()
+                        assert_eq!(resp.status(), StatusCode::OK);
                     });
             }
             futures::future::join_all(parallel).await;
@@ -105,6 +96,7 @@ pub fn http_benchmark(c: &mut Criterion) {
 
     thandle.join().expect("UService thread complete");
 
+    println!("uService shutdown happily");
 }
 
 
