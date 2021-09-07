@@ -70,7 +70,6 @@ pub fn http_benchmark(c: &mut Criterion) {
     });
 
 
-
     c.bench_function("http sample concurrent", |b| {
         let concurrency  = 100;
 

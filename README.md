@@ -13,8 +13,8 @@ Create a small runtime that implements the following.
     * [x] Implement lto on compile
  * [x] respond to k8s lifecycle hooks
  * [x] Prometheus metrics
- * [z] Web service with metrics and logs
- * [ ] Benchmark to see/view performance of uService
+ * [x] Web service with metrics and logs
+ * [x] Benchmark to see/view performance of uService
  * [ ] Kafka support behind a feature control
 
 
