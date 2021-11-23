@@ -45,6 +45,14 @@ Web service to include minimal serving functions.
 Web service to capture prometheus metrics
 Web service to write logs
 
+# Run service then test the HUP signal
+
+Run the service then find the PID and send HUP signal
+
+   ./target/debug/uservice start
+
+   kill -HUP <PID>
+
 # Benchmarks
 
 It may be useful to install cargo-criterion as a binary to handle some of the wrapping work for benchmarking

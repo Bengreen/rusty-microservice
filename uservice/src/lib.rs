@@ -18,6 +18,7 @@ use log::{info};
 use std::ffi::{CStr};
 use std::os::raw::{c_char, c_int};
 use env_logger::Env;
+use std::process;
 
 
 /// Initialize the logger
@@ -33,7 +34,6 @@ use env_logger::Env;
 ///
 /// unsafe{uservice::init_logger(log_env.as_ptr(), write_env.as_ptr());}
 /// ```
-
 #[no_mangle]
 pub extern fn init_logger(filter_c_str: *const c_char, write_c_str: *const c_char) {
     if filter_c_str.is_null() {
@@ -61,7 +61,12 @@ pub extern fn init_logger(filter_c_str: *const c_char, write_c_str: *const c_cha
 /// ```
 #[no_mangle]
 pub extern fn runService() {
-    info!("Initializing the service");
+
+    info!("Initializing the service with PID: {}", process::id());
+
+    start(&UServiceConfig {
+        name: String::from("simple"),
+    });
 
     info!("Closing the service");
 }
@@ -75,6 +80,7 @@ pub extern fn runService() {
 /// let health_name = CString::new("USERVICE_LOG_LEVEL").expect("CString::new failed");
 ///
 /// let hc = uservice::createHealthProbe(health_name.as_ptr(), 2);
+/// assert_eq!(hc, 20);
 /// ```
 #[no_mangle]
 pub extern fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_int {
@@ -90,7 +96,6 @@ pub extern fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_int 
 
     name_str.len() as i32 + margin_ms
 }
-
 
 
 
@@ -246,6 +251,16 @@ mod tests {
     use super::*;
     use crate::start;
     use std::thread;
+
+    #[test]
+    #[should_panic(expected = "Unable to read probe name")]
+    fn create_probe_with_invalid_name() {
+        use std::ptr;
+
+        let foo = createHealthProbe(ptr::null(), 7);
+
+        assert_eq!(foo, 12);
+    }
 
     #[tokio::test]
     async fn service_loading() {
