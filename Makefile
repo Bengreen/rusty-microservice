@@ -8,7 +8,7 @@ release:
 
 
 status:
-	@${CARGO} --version
+	@cargo --version
 
 test:
 	cargo test -- --nocapture
