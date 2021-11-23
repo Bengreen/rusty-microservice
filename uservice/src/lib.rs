@@ -211,6 +211,8 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
 
         info!("registered signal handlers");
         tokio::select! {
+            _ = tokio::signal::ctrl_c() => info!("Received ctrl-c signal"),
+            // _ = sig_ctrlc.recv() => info!("Received ctrl-c signal"),
             _ = rx_http_kill.recv() => info!("Received HTTP kill signal"),
             _ = sig_terminate.recv() => info!("Received TERM signal"),
             _ = sig_quit.recv() => info!("Received QUIT signal"),
