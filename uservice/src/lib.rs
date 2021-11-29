@@ -6,7 +6,6 @@ use std::process;
 
 mod uservice;
 mod k8slifecycle;
-mod sampleservice;
 
 /// Initialize the logger
 ///

@@ -11,6 +11,7 @@ env_logger = "0.9.0"
 log = {version = "0.4.14", features = ["release_max_level_warn"]}
 clap = "3.0.0-beta.5"
 uservice = { path = "uservice" }
+sample01 = { path = "sample01"}
 
 # [bin]
 # name = "uservicestart"

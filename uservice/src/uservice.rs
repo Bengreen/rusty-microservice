@@ -2,7 +2,6 @@
 
 use crate::k8slifecycle::health_listen;
 use crate::k8slifecycle::{HealthCheck, HealthProbe};
-use crate::sampleservice::sample_listen;
 use futures::future;
 use std::mem;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -109,7 +108,6 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
 
     uservice.add(simple_loop(&time_loop).await);
     uservice.add(health_listen("health", 7979, &liveness, &readyness, channel_http_kill).await);
-    uservice.add(sample_listen("sample", 8080).await);
 
     let channels_register = uservice.channels.clone();
     tokio::spawn(async move {
