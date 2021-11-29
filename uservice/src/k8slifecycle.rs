@@ -1,6 +1,6 @@
 //! supporting functions for a microservice
 
-use crate::HandleChannel;
+use crate::uservice::HandleChannel;
 use atomic::Atomic;
 use lazy_static::lazy_static;
 use prometheus::{HistogramOpts, HistogramVec, IntCounter, IntCounterVec, Opts, Registry};
