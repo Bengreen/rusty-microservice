@@ -1,8 +1,8 @@
+
 use log::{info};
 use std::ffi::{CStr};
 use std::os::raw::{c_char};
 use env_logger::Env;
-
 use std::process;
 
 
@@ -20,7 +20,7 @@ use std::process;
 /// unsafe{uservice::init_logger(log_env.as_ptr(), write_env.as_ptr());}
 /// ```
 #[no_mangle]
-pub extern fn sample01_init_logger(filter_c_str: *const c_char, write_c_str: *const c_char) {
+pub extern fn init_service_logger(filter_c_str: *const c_char, write_c_str: *const c_char) {
     if filter_c_str.is_null() {
         panic!("Unable to read filter env var");
     }
@@ -37,8 +37,7 @@ pub extern fn sample01_init_logger(filter_c_str: *const c_char, write_c_str: *co
     env_logger::Builder::from_env(log_level).init();
 }
 
-const NAME: &'static str = env!("CARGO_PKG_NAME");
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 /// Start the microservice and keep exe control until it is complete
 ///
 /// Start the microservice and retain exec until the service exits.
@@ -47,9 +46,29 @@ const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 /// uservice::runService();
 /// ```
 #[no_mangle]
-pub extern fn sample01_run() {
+pub extern fn init_service() {
 
-    info!("Initializing the {} {} with PID: {}", NAME, VERSION, process::id());
+    info!("Initializing the service with PID: {}", process::id());
 
-    info!("Closing {}", NAME);
+
+    info!("Service initialized");
+}
+
+
+
+
+/// Start the microservice and keep exe control until it is complete
+///
+/// Start the microservice and retain exec until the service exits.
+///
+/// ```
+/// uservice::runService();
+/// ```
+#[no_mangle]
+pub extern fn process() {
+
+    info!("Processing the service with PID: {}", process::id());
+
+
+    info!("end of processing");
 }

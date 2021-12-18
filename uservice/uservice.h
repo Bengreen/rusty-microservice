@@ -45,4 +45,11 @@ void runService();
 int createHealthProbe(const char *name,
                       int margin_ms);
 
+/// Create a call back register function
+///
+/// This will store the function provided, making it avalable when the callback is to be triggered
+int32_t register_callback(void (*callback)(int32_t));
+
+void trigger_callback();
+
 } // extern "C"

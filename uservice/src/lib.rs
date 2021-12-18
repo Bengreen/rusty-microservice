@@ -1,42 +1,18 @@
 use log::{info};
 use std::ffi::{CStr};
 use std::os::raw::{c_char, c_int};
-use env_logger::Env;
+// use env_logger::Env;
 use std::process;
+
+use ffi_log2::{LogParam, init};
+
 
 mod uservice;
 mod k8slifecycle;
 
-/// Initialize the logger
-///
-/// The logger env_logger is built into the so and is initialised using this function. BUT this is not quite right.
-/// The logger should not have to be implemented inside the so. It should be possible to implement the logger in the exe and not the so.
-/// The so role is to use the log methods and not have to implement the log backend.
-///
-/// ```
-/// use std::ffi::{CString};
-/// let log_env = CString::new("USERVICE_LOG_LEVEL").expect("CString::new failed");
-/// let write_env = CString::new("USERVICE_WRITE_STYLE").expect("CString::new failed");
-///
-/// unsafe{uservice::init_logger(log_env.as_ptr(), write_env.as_ptr());}
-/// ```
-#[no_mangle]
-pub extern fn init_logger(filter_c_str: *const c_char, write_c_str: *const c_char) {
-    if filter_c_str.is_null() {
-        panic!("Unable to read filter env var");
-    }
-    if write_c_str.is_null() {
-        panic!("Unable to read write env var");
-    }
+const NAME: &'static str = env!("CARGO_PKG_NAME");
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
-    let filter_env = unsafe { CStr::from_ptr(filter_c_str) }.to_str().expect("convert name to str");
-    let write_env = unsafe { CStr::from_ptr(write_c_str) }.to_str().expect("convert name to str");
-
-    let log_level = Env::new()
-        .filter_or(filter_env, "info")
-        .write_style_or(write_env, "always");
-    env_logger::Builder::from_env(log_level).init();
-}
 
 /// Start the microservice and keep exe control until it is complete
 ///
@@ -81,4 +57,74 @@ pub extern fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_int 
     info!("The probe is called: {}", name_str);
 
     name_str.len() as i32 + margin_ms
+}
+
+
+
+// typedef void (*rust_callback)(int32_t);
+// rust_callback cb;
+
+// pub struct MyState {
+//     pub call_back: extern fn(i32) -> i32
+// }
+
+pub struct MyState<> {
+    // pub call_back: Box<dyn FnMut(i32) -> i32 + 'a>
+    pub call_back: Box<extern fn(i32) -> i32 >
+}
+
+static mut MYCB: Option<MyState> = None;
+
+
+
+/// Create a call back register function
+///
+/// This will store the function provided, making it avalable when the callback is to be triggered
+#[no_mangle]
+pub extern fn register_callback(callback: extern fn(i32) -> i32) -> i32 {
+    // Save callback function that has been registered so it can be called later.
+    // MyState::call_back = callback;
+    callback(3);
+
+    match get_callback() {
+        Some(_b) => {
+            println!("CB already set");
+        },
+        None => {
+            println!("starting to replace callback");
+            info!("UService registering callback");
+            unsafe {
+                MYCB=Some(MyState{call_back : Box::new(callback)});
+            }
+            println!("have registered callback");
+        }
+
+    }
+    return 1;
+}
+
+fn get_callback() -> &'static Option<MyState> {
+    unsafe {
+        &MYCB
+    }
+}
+
+#[no_mangle]
+pub extern fn trigger_callback() {
+    match get_callback() {
+        Some(b) => {
+            println!("have been registered OK");
+            let x = (*b.call_back)(12);
+            println!("x = {} on callback", x);
+        },
+        None => panic!("not registered yet")
+    }
+
+}
+
+
+#[no_mangle]
+pub extern fn uservice_init_logger_ffi(param: LogParam) {
+    init(param);
+    info!("Logging registered for {}:{} (PID: {}) using FFI", NAME, VERSION, process::id());
 }

@@ -27,6 +27,13 @@ Cli command to do:
 * parse - parse config and validate
 * start - start the service and be responsive to readiness/liveness
 
+# Reading list
+
+* Asynchronous across FFI interface https://michael-f-bryan.github.io/rust-ffi-guide/async.html
+* FFI Omnibus for Rust http://jakegoulding.com/rust-ffi-omnibus/integers/
+* FFI good practice https://spin.atomicobject.com/2013/02/15/ffi-foreign-function-interfaces/
+
+
 # actix-rs
 
 Actix-rs appears to be the bigger better supported web framework in rust but seems to be quite heavyweight in terms of getting it started. It starts with threaded responses and web servers wihtin those. Also when trying to get it started it requires to be run on an async main which may be tricky to map into clap for CLI parsing.

@@ -3,11 +3,22 @@
 
 //! myhhfhf is a minimal microservice built as an exec (caller) and a sharedobject. This allows the library to have exposed APIs that can be called from other languages
 
+mod sample01;
+
 use std::os::raw::{c_char};
 use env_logger::Env;
 use log::{info};
-use std::ffi::{CString};
 use clap::{App, Arg};
+use ffi_log2::{LogParam, log_param};
+
+
+#[link(name = "sample01", kind = "dylib")]
+extern {
+    //! CAPI methods from shared library
+    // fn test();
+    fn sample01_run();
+    fn sample01_init_logger(filter_env_var: *const c_char, write_env_var: *const c_char);
+}
 
 
 #[link(name = "uservice", kind = "dylib")]
@@ -15,7 +26,33 @@ extern {
     //! CAPI methods from shared library
     // fn test();
     fn runService();
-    fn init_logger(filter_env_var: *const c_char, write_env_var: *const c_char);
+    // fn init_logger(filter_env_var: *const c_char, write_env_var: *const c_char);
+    fn register_callback(callback: extern fn(i32)) -> i32;
+    fn trigger_callback();
+    fn uservice_init_logger_ffi(param: LogParam);
+}
+
+extern fn callback(a: i32) {
+    info!("i am a log of callback from main");
+    println!("I'm called from UService library with value {0}", a);
+}
+
+
+fn register_service() {
+    info!("Registering service");
+
+    unsafe {
+        register_callback(callback);
+        trigger_callback(); // Triggers the callback.
+    }
+
+    unsafe {
+        sample01_run();
+    }
+
+    // register the init function to be called by uservice on start
+    // register the process function to be called by uservice on process
+    info!("Completed registration process");
 }
 
 
@@ -27,9 +64,9 @@ pub fn main() {
     let log_level = Env::default().default_filter_or("info");
     env_logger::Builder::from_env(log_level).init();
 
-    let log_env = CString::new("SNAKESKIN_LOG_LEVEL").expect("CString::new failed");
-    let write_env = CString::new("SNAKESKIN_WRITE_STYLE").expect("CString::new failed");
-    unsafe{init_logger(log_env.as_ptr(), write_env.as_ptr());}
+    unsafe{
+        uservice_init_logger_ffi(log_param());
+    }
 
 
 
@@ -83,6 +120,8 @@ pub fn main() {
         }
         Some(("start", _start_matches)) => {
             info!("Calling start");
+
+            register_service();
 
             unsafe{
                 runService();
