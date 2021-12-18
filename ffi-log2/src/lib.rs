@@ -30,11 +30,11 @@ pub struct ExternCMetadata {
 pub struct LogParam {
     /// function to check if logging is enabled
     /// todo: make a Metadata struct that is FFI safe
-    pub enabled: extern "C" fn(&Metadata) -> bool,
+    pub enabled:fn(&Metadata) -> bool,
     /// Write a log record
-    pub log: extern "C" fn(&Record),
+    pub log: fn(&Record),
     /// flush the logs
-    pub flush: extern "C" fn(),
+    pub flush: fn(),
     /// value for the log level
     pub level: LevelFilter,
 }
@@ -79,18 +79,15 @@ impl Log for DLog {
 
 static LOGGER: DLog = DLog;
 
-#[no_mangle]
-extern "C" fn enabled(meta: &Metadata) -> bool {
+fn enabled(meta: &Metadata) -> bool {
     log::logger().enabled(meta)
 }
 
-#[no_mangle]
-extern "C" fn log(record: &Record) {
+fn log(record: &Record) {
     log::logger().log(record)
 }
 
-#[no_mangle]
-extern "C" fn flush() {
+fn flush() {
     log::logger().flush()
 }
 
