@@ -104,32 +104,3 @@ pub fn log_param() -> LogParam {
         level: log::max_level(),
     }
 }
-
-
-// #[repr(C)]
-// pub struct SharedLogger {
-//     formatter: for<'a> extern "C" fn(&'a log::Record<'_>),
-// }
-// impl log::Log for SharedLogger {
-//     fn enabled(&self, _: &Metadata) -> bool {
-//         true
-//     }
-//     fn log(&self, record: &log::Record) {
-//         (self.formatter)(record)
-//     }
-//     fn flush(&self) {}
-// }
-
-// pub fn build_shared_logger() -> SharedLogger {
-//     extern "C" fn formatter(r: &log::Record<'_>) {
-//         tracing_log::format_trace(r).unwrap()
-//     }
-//     SharedLogger { formatter }
-// }
-
-// #[no_mangle]
-// pub extern "C" fn setup_shared_logger(logger: SharedLogger) {
-//     if let Err(err) = log::set_boxed_logger(Box::new(logger)) {
-//         log::warn!("{}", err)
-//     }
-// }
