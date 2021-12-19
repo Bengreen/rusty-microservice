@@ -4,10 +4,8 @@
 //! Create a ffi function that enables the logging in the DLL to be configured (safely).
 //! Createa function in the main that allows creating of the object that is used to configure the DLL funciton.
 
-
 use log::{Level, LevelFilter, Log, Metadata, Record, RecordBuilder};
 use std::mem::ManuallyDrop;
-
 
 /// FFI-safe borrowed Rust &str. Can represents `Option<&str>` by setting ptr to null.
 #[repr(C)]
@@ -30,20 +28,26 @@ impl<'a> From<&'a str> for RustStr {
 impl<'a> From<Option<&'a str>> for RustStr {
     fn from(o: Option<&'a str>) -> Self {
         match o {
-            None => Self { ptr: std::ptr::null(), len: 0 },
+            None => Self {
+                ptr: std::ptr::null(),
+                len: 0,
+            },
             Some(s) => Self::from(s),
         }
     }
 }
 
 impl RustStr {
-    /// Convert RustStr to str
+    /// # Safety
+    ///
+    /// Convert RustStr to str. Care must be taken to check and validate across FFI boundaries
     pub unsafe fn to_str<'a>(&self) -> &'a str {
         let bytes = std::slice::from_raw_parts(self.ptr, self.len);
         std::str::from_utf8_unchecked(bytes)
     }
-
-    /// Convert to Optional RustStr
+    /// # Safety
+    ///
+    /// Convert to Optional RustStr. Use null to reference as None
     pub unsafe fn to_opt_str<'a>(&self) -> Option<&'a str> {
         if self.ptr.is_null() {
             None
@@ -63,23 +67,21 @@ pub struct ExternCMetadata {
 }
 
 impl ExternCMetadata {
-    /// convert to metadata for use in log functions
+    /// # Safety
+    ///
+    /// convert to metadata for use in log functions. Convert from FFI to Metadata
     pub unsafe fn as_metadata(&self) -> Metadata {
         let level = self.level;
         let target = self.target.to_str();
-        Metadata::builder()
-            .level(level)
-            .target(target)
-            .build()
+        Metadata::builder().level(level).target(target).build()
     }
 }
-
 
 impl<'a> From<&Metadata<'a>> for ExternCMetadata {
     fn from(m: &Metadata<'a>) -> Self {
         Self {
             level: m.level(),
-            target: m.target().into()
+            target: m.target().into(),
         }
     }
 }
@@ -94,14 +96,19 @@ pub struct RustString {
     pub len: usize,
 }
 impl RustString {
-    /// covert to String
+    /// # Safety
+    ///
+    /// covert to String from FFI version
     pub unsafe fn to_str<'a>(&self) -> &'a str {
         RustStr {
             ptr: self.ptr as _,
             len: self.len,
-        }.to_str()
+        }
+        .to_str()
     }
-    /// Convert to Optional String
+    /// # Safety
+    ///
+    /// Convert to Optional String from FFI version
     pub unsafe fn into_string(self) -> String {
         String::from_raw_parts(self.ptr, self.len, self.cap)
     }
@@ -121,7 +128,6 @@ impl Drop for RustString {
         }
     }
 }
-
 
 /// FFI-safe Record
 #[repr(C)]
@@ -152,6 +158,8 @@ impl<'a> From<&Record<'a>> for ExternCRecord {
 }
 
 impl ExternCRecord {
+    /// # Safety
+    ///
     /// Return the record build for the externCRecord
     pub unsafe fn as_record_builder(&self) -> RecordBuilder {
         let mut builder = Record::builder();
@@ -161,12 +169,15 @@ impl ExternCRecord {
             .metadata(self.metadata.as_metadata())
             .module_path(self.module_path.to_opt_str())
             .file(self.file.to_opt_str())
-            .line(if self.line == -1 { None } else { Some(self.line as _) });
+            .line(if self.line == -1 {
+                None
+            } else {
+                Some(self.line as _)
+            });
         builder
         // Return a Record here instead of a RecordBuilder
     }
 }
-
 
 /** LogParam is LogParam is a struct that transports the necessary objects to enable the configuration of the DLL logger.
  * This structure must be FFI-safe. It must be constructured into FFI safe structures from the original structures on teh sending side and reconstruced into the log structures on teh consume size of log functions.
@@ -174,11 +185,11 @@ impl ExternCRecord {
 #[repr(C)]
 pub struct LogParam {
     /// function to check if logging is enabled
-    pub enabled:extern "C" fn(ExternCMetadata) -> bool,
+    pub enabled: extern "C" fn(ExternCMetadata) -> bool,
     /// Write a log record
-    pub log:extern "C" fn(&ExternCRecord),
+    pub log: extern "C" fn(&ExternCRecord),
     /// flush the logs
-    pub flush:extern "C" fn(),
+    pub flush: extern "C" fn(),
     /// value for the log level
     pub level: LevelFilter,
 }
@@ -229,14 +240,14 @@ impl Log for DLog {
 static LOGGER: DLog = DLog;
 
 extern "C" fn enabled(meta: ExternCMetadata) -> bool {
-    let metadata = unsafe {meta.as_metadata() };
+    let metadata = unsafe { meta.as_metadata() };
     log::logger().enabled(&metadata)
 }
 
 extern "C" fn log(ext_record: &ExternCRecord) {
-    let mut record_builder = unsafe {ext_record.as_record_builder()};
+    let mut record_builder = unsafe { ext_record.as_record_builder() };
 
-    match format_args!("{}", unsafe{ext_record.message.to_str()}) {
+    match format_args!("{}", unsafe { ext_record.message.to_str() }) {
         args => {
             let record = record_builder.args(args).build();
             log::logger().log(&record);

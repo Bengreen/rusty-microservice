@@ -1,10 +1,8 @@
-
-use log::{info};
-use std::ffi::{CStr};
-use std::os::raw::{c_char};
 use env_logger::Env;
+use log::info;
+use std::ffi::CStr;
+use std::os::raw::c_char;
 use std::process;
-
 
 /// Initialize the logger
 ///
@@ -20,7 +18,7 @@ use std::process;
 /// unsafe{uservice::init_logger(log_env.as_ptr(), write_env.as_ptr());}
 /// ```
 #[no_mangle]
-pub extern fn init_service_logger(filter_c_str: *const c_char, write_c_str: *const c_char) {
+pub extern "C" fn init_service_logger(filter_c_str: *const c_char, write_c_str: *const c_char) {
     if filter_c_str.is_null() {
         panic!("Unable to read filter env var");
     }
@@ -28,8 +26,12 @@ pub extern fn init_service_logger(filter_c_str: *const c_char, write_c_str: *con
         panic!("Unable to read write env var");
     }
 
-    let filter_env = unsafe { CStr::from_ptr(filter_c_str) }.to_str().expect("convert name to str");
-    let write_env = unsafe { CStr::from_ptr(write_c_str) }.to_str().expect("convert name to str");
+    let filter_env = unsafe { CStr::from_ptr(filter_c_str) }
+        .to_str()
+        .expect("convert name to str");
+    let write_env = unsafe { CStr::from_ptr(write_c_str) }
+        .to_str()
+        .expect("convert name to str");
 
     let log_level = Env::new()
         .filter_or(filter_env, "info")
@@ -37,7 +39,6 @@ pub extern fn init_service_logger(filter_c_str: *const c_char, write_c_str: *con
     env_logger::Builder::from_env(log_level).init();
 }
 
-
 /// Start the microservice and keep exe control until it is complete
 ///
 /// Start the microservice and retain exec until the service exits.
@@ -46,17 +47,12 @@ pub extern fn init_service_logger(filter_c_str: *const c_char, write_c_str: *con
 /// uservice::runService();
 /// ```
 #[no_mangle]
-pub extern fn init_service() {
-
+pub extern "C" fn init_service() {
     info!("Initializing the service with PID: {}", process::id());
-
 
     info!("Service initialized");
 }
 
-
-
-
 /// Start the microservice and keep exe control until it is complete
 ///
 /// Start the microservice and retain exec until the service exits.
@@ -65,10 +61,8 @@ pub extern fn init_service() {
 /// uservice::runService();
 /// ```
 #[no_mangle]
-pub extern fn process() {
-
+pub extern "C" fn process() {
     info!("Processing the service with PID: {}", process::id());
-
 
     info!("end of processing");
 }

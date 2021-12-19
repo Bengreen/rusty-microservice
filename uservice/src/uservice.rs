@@ -3,6 +3,7 @@
 use crate::k8slifecycle::health_listen;
 use crate::k8slifecycle::{HealthCheck, HealthProbe};
 use futures::future;
+use log::info;
 use std::mem;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -10,9 +11,6 @@ use std::time::Duration;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc;
 use tokio::time::sleep;
-use log::{info};
-
-
 
 pub struct UServiceConfig {
     pub name: String,
@@ -98,7 +96,6 @@ async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
     HandleChannel { handle, channel }
 }
 
-
 pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness: &HealthCheck) {
     // ToDo: Look at this for clue on how to run on LocalSet : https://docs.rs/tokio/1.9.0/tokio/task/struct.LocalSet.html
     let (channel_http_kill, mut rx_http_kill) = mpsc::channel::<()>(1);
@@ -107,7 +104,7 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
     liveness.add(&time_loop);
 
     uservice.add(simple_loop(&time_loop).await);
-    uservice.add(health_listen("health", 7979, &liveness, &readyness, channel_http_kill).await);
+    uservice.add(health_listen("health", 7979, liveness, readyness, channel_http_kill).await);
 
     let channels_register = uservice.channels.clone();
     tokio::spawn(async move {
@@ -133,10 +130,8 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
     uservice.join().await;
 }
 
-
 /// Start the service (including starting the runtime (ie tokio))
 pub fn start(config: &UServiceConfig) {
-
     info!("uService: Start");
     let liveness = HealthCheck::new("liveness");
     let readyness = HealthCheck::new("readyness");
@@ -153,8 +148,6 @@ pub fn start(config: &UServiceConfig) {
     info!("uService {}: Stop", config.name);
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,7 +162,6 @@ mod tests {
         let resp = client.get(uri).await.unwrap();
         info!("Kill Response: {}", resp.status());
     }
-
 
     #[test]
     #[should_panic(expected = "Unable to read probe name")]
@@ -204,6 +196,4 @@ mod tests {
 
         ben.join().unwrap();
     }
-
-
 }

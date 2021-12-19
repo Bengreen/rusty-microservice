@@ -1,26 +1,18 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use rustyhello::{UServiceConfig, UService, start_async, send_http_kill};
-use rustyhello::k8slifecycle::{HealthCheck};
-
-
+use rustyhello::k8slifecycle::HealthCheck;
+use rustyhello::{send_http_kill, start_async, UService, UServiceConfig};
 
 pub fn http_benchmark(c: &mut Criterion) {
-
-    use warp::hyper::Client;
+    use std::{thread, time};
     use warp::hyper;
     use warp::hyper::http::StatusCode;
-    use std::{thread, time};
-
-
-
+    use warp::hyper::Client;
 
     println!("Loading uService");
 
-
     // Spin service up in its own thread
     let thandle = std::thread::spawn(move || {
-
         let rt_u = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -28,10 +20,9 @@ pub fn http_benchmark(c: &mut Criterion) {
 
         let _guard = rt_u.enter();
         rt_u.block_on(async {
-
             let local = tokio::task::LocalSet::new();
 
-            local.spawn_local( async {
+            local.spawn_local(async {
                 let config = UServiceConfig {
                     name: String::from("test0"),
                 };
@@ -69,25 +60,23 @@ pub fn http_benchmark(c: &mut Criterion) {
         });
     });
 
-
     c.bench_function("http sample concurrent", |b| {
-        let concurrency  = 100;
+        let concurrency = 100;
 
         b.to_async(&rt_b).iter(|| async {
             let mut parallel = Vec::new();
 
             for _i in 0..concurrency {
                 parallel.push(async {
-                        let resp = client.get(uri.clone()).await.unwrap();
-                        assert_eq!(resp.status(), StatusCode::OK);
-                    });
+                    let resp = client.get(uri.clone()).await.unwrap();
+                    assert_eq!(resp.status(), StatusCode::OK);
+                });
             }
             futures::future::join_all(parallel).await;
         });
     });
 
     thread::sleep(time::Duration::from_secs(3));
-
 
     rt_b.block_on(async {
         send_http_kill().await;
@@ -98,8 +87,9 @@ pub fn http_benchmark(c: &mut Criterion) {
     println!("uService shutdown happily");
 }
 
-
-criterion_group!(benches,
+criterion_group!(
+    benches,
     // criterion_benchmark,
-     http_benchmark);
+    http_benchmark
+);
 criterion_main!(benches);

@@ -1,4 +1,3 @@
-
 #![warn(missing_docs)]
 
 //! myhhfhf is a minimal microservice built as an exec (caller) and a sharedobject. This allows the library to have exposed APIs that can be called from other languages
@@ -6,37 +5,34 @@
 mod sample01;
 
 // use std::os::raw::{c_char};
-use env_logger::Env;
-use log::{info};
 use clap::{App, Arg};
-use ffi_log2::{LogParam, log_param};
-
+use env_logger::Env;
+use ffi_log2::{log_param, LogParam};
+use log::info;
 
 #[link(name = "sample01", kind = "dylib")]
-extern {
+extern "C" {
     //! CAPI methods from shared library
     // fn test();
     fn sample01_run();
     fn sample01_init_logger_ffi(param: LogParam);
 }
 
-
 #[link(name = "uservice", kind = "dylib")]
-extern {
+extern "C" {
     //! CAPI methods from shared library
     // fn test();
     fn runService();
     // fn init_logger(filter_env_var: *const c_char, write_env_var: *const c_char);
-    fn register_callback(callback: extern fn(i32)) -> i32;
+    fn register_callback(callback: extern "C" fn(i32)) -> i32;
     fn trigger_callback();
     fn uservice_init_logger_ffi(param: LogParam);
 }
 
-extern fn callback(a: i32) {
+extern "C" fn callback(a: i32) {
     info!("i am a log of callback from main");
     println!("I'm called from UService library with value {0}", a);
 }
-
 
 fn register_service() {
     info!("Registering service");
@@ -55,7 +51,6 @@ fn register_service() {
     info!("Completed registration process");
 }
 
-
 pub fn main() {
     //! Initialise the shared library
 
@@ -64,12 +59,10 @@ pub fn main() {
     let log_level = Env::default().default_filter_or("info");
     env_logger::Builder::from_env(log_level).init();
 
-    unsafe{
+    unsafe {
         uservice_init_logger_ffi(log_param());
         sample01_init_logger_ffi(log_param());
     }
-
-
 
     let matches = App::new("k8s uService")
         .version("0.1.0")
@@ -94,7 +87,6 @@ pub fn main() {
         .subcommand(App::new("start").about("Start service"))
         .subcommand(App::new("version").about("Version info"))
         .get_matches();
-
 
     if let Some(c) = matches.value_of("config") {
         println!("Value for config: {}", c);
@@ -124,7 +116,7 @@ pub fn main() {
 
             register_service();
 
-            unsafe{
+            unsafe {
                 runService();
             }
             info!("I AM DONE");
@@ -134,7 +126,5 @@ pub fn main() {
         }
         None => println!("No command provided"),
         _ => unreachable!(),
-
     }
-
 }
