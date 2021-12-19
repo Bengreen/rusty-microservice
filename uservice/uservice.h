@@ -6,22 +6,6 @@
 
 extern "C" {
 
-/// Initialize the logger
-///
-/// The logger env_logger is built into the so and is initialised using this function. BUT this is not quite right.
-/// The logger should not have to be implemented inside the so. It should be possible to implement the logger in the exe and not the so.
-/// The so role is to use the log methods and not have to implement the log backend.
-///
-/// ```
-/// use std::ffi::{CString};
-/// let log_env = CString::new("USERVICE_LOG_LEVEL").expect("CString::new failed");
-/// let write_env = CString::new("USERVICE_WRITE_STYLE").expect("CString::new failed");
-///
-/// unsafe{uservice::init_logger(log_env.as_ptr(), write_env.as_ptr());}
-/// ```
-void init_logger(const char *filter_c_str,
-                 const char *write_c_str);
-
 /// Start the microservice and keep exe control until it is complete
 ///
 /// Start the microservice and retain exec until the service exits.
@@ -48,8 +32,10 @@ int createHealthProbe(const char *name,
 /// Create a call back register function
 ///
 /// This will store the function provided, making it avalable when the callback is to be triggered
-int32_t register_callback(void (*callback)(int32_t));
+int32_t register_callback(int32_t (*callback)(int32_t));
 
 void trigger_callback();
+
+void uservice_init_logger_ffi(LogParam param);
 
 } // extern "C"
