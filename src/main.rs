@@ -5,7 +5,7 @@
 
 mod sample01;
 
-use std::os::raw::{c_char};
+// use std::os::raw::{c_char};
 use env_logger::Env;
 use log::{info};
 use clap::{App, Arg};
@@ -17,7 +17,7 @@ extern {
     //! CAPI methods from shared library
     // fn test();
     fn sample01_run();
-    fn sample01_init_logger(filter_env_var: *const c_char, write_env_var: *const c_char);
+    fn sample01_init_logger_ffi(param: LogParam);
 }
 
 
@@ -66,6 +66,7 @@ pub fn main() {
 
     unsafe{
         uservice_init_logger_ffi(log_param());
+        sample01_init_logger_ffi(log_param());
     }
 
 

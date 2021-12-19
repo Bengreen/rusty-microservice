@@ -5,14 +5,16 @@
 //! Createa function in the main that allows creating of the object that is used to configure the DLL funciton.
 
 
-use log::{Level, LevelFilter, Log, Metadata, Record, RecordBuilder, SetLoggerError};
+use log::{Level, LevelFilter, Log, Metadata, Record, RecordBuilder};
 use std::mem::ManuallyDrop;
 
 
 /// FFI-safe borrowed Rust &str. Can represents `Option<&str>` by setting ptr to null.
 #[repr(C)]
 pub struct RustStr {
+    /// pointer to c-FFI safe string chars
     pub ptr: *const u8,
+    /// length of rust string for C
     pub len: usize,
 }
 /** Convert to RustStr from str */
@@ -41,6 +43,7 @@ impl RustStr {
         std::str::from_utf8_unchecked(bytes)
     }
 
+    /// Convert to Optional RustStr
     pub unsafe fn to_opt_str<'a>(&self) -> Option<&'a str> {
         if self.ptr.is_null() {
             None
@@ -55,6 +58,7 @@ impl RustStr {
 pub struct ExternCMetadata {
     /// Log verbosity
     pub level: Level,
+    /// Log target
     pub target: RustStr,
 }
 
@@ -82,17 +86,22 @@ impl<'a> From<&Metadata<'a>> for ExternCMetadata {
 /// FFI-safe owned Rust String.
 #[repr(C)]
 pub struct RustString {
+    /// pointer to characters
     pub ptr: *mut u8,
+    /// capacity
     pub cap: usize,
+    /// length
     pub len: usize,
 }
 impl RustString {
+    /// covert to String
     pub unsafe fn to_str<'a>(&self) -> &'a str {
         RustStr {
             ptr: self.ptr as _,
             len: self.len,
         }.to_str()
     }
+    /// Convert to Optional String
     pub unsafe fn into_string(self) -> String {
         String::from_raw_parts(self.ptr, self.len, self.cap)
     }
@@ -117,11 +126,15 @@ impl Drop for RustString {
 /// FFI-safe Record
 #[repr(C)]
 pub struct ExternCRecord {
+    /// Extern C Metadata
     pub metadata: ExternCMetadata,
     /// fmt::Arguments<'a> are not FFI-safe, so we have no option but to format them beforehand.
     pub message: RustString,
+    /// module path RustStr
     pub module_path: RustStr, // None points to null
+    /// file name RustStr
     pub file: RustStr, // None points to null
+    /// Line number of log entry
     pub line: i64, // None maps to -1, everything else should fit in u32.
 }
 

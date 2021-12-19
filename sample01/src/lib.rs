@@ -1,41 +1,9 @@
 use log::{info};
-use std::ffi::{CStr};
-use std::os::raw::{c_char};
-use env_logger::Env;
+// use std::ffi::{CStr};
+use ffi_log2::{LogParam, init};
 
 use std::process;
 
-
-/// Initialize the logger
-///
-/// The logger env_logger is built into the so and is initialised using this function. BUT this is not quite right.
-/// The logger should not have to be implemented inside the so. It should be possible to implement the logger in the exe and not the so.
-/// The so role is to use the log methods and not have to implement the log backend.
-///
-/// ```
-/// use std::ffi::{CString};
-/// let log_env = CString::new("USERVICE_LOG_LEVEL").expect("CString::new failed");
-/// let write_env = CString::new("USERVICE_WRITE_STYLE").expect("CString::new failed");
-///
-/// unsafe{uservice::init_logger(log_env.as_ptr(), write_env.as_ptr());}
-/// ```
-#[no_mangle]
-pub extern fn sample01_init_logger(filter_c_str: *const c_char, write_c_str: *const c_char) {
-    if filter_c_str.is_null() {
-        panic!("Unable to read filter env var");
-    }
-    if write_c_str.is_null() {
-        panic!("Unable to read write env var");
-    }
-
-    let filter_env = unsafe { CStr::from_ptr(filter_c_str) }.to_str().expect("convert name to str");
-    let write_env = unsafe { CStr::from_ptr(write_c_str) }.to_str().expect("convert name to str");
-
-    let log_level = Env::new()
-        .filter_or(filter_env, "info")
-        .write_style_or(write_env, "always");
-    env_logger::Builder::from_env(log_level).init();
-}
 
 const NAME: &'static str = env!("CARGO_PKG_NAME");
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -52,4 +20,10 @@ pub extern fn sample01_run() {
     info!("Initializing the {} {} with PID: {}", NAME, VERSION, process::id());
 
     info!("Closing {}", NAME);
+}
+
+#[no_mangle]
+pub extern fn sample01_init_logger_ffi(param: LogParam) {
+    init(param);
+    info!("Logging registered for {}:{} (PID: {}) using FFI", NAME, VERSION, process::id());
 }
