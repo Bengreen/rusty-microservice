@@ -75,6 +75,10 @@ pub extern "C" fn register_service(
     return 1;
 }
 
+/// Unregister service from exec environment.
+///
+/// Note this does not ensure to check if the function is currently running or that it may be running an async thread.
+/// It simply disconnected the callback to stop it being called in future.
 #[no_mangle]
 pub extern "C" fn unregister_service()  -> i32 {
     unset_service();
@@ -82,7 +86,9 @@ pub extern "C" fn unregister_service()  -> i32 {
 }
 
 
-
+/// Call to the services that are registered
+///
+/// This will run init followed by process. It expects the services to be registered before this functions is called.
 #[no_mangle]
 pub extern "C" fn trigger_service() {
 
@@ -92,6 +98,8 @@ pub extern "C" fn trigger_service() {
     info!("x = {} on process", x);
 }
 
+
+/// Initialise the FFI based logging for this crate
 #[no_mangle]
 pub extern "C" fn uservice_init_logger_ffi(param: LogParam) {
     init_logging(param);

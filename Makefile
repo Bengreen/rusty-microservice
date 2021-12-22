@@ -34,7 +34,7 @@ bloat:
 doc:
 	@cargo doc --no-deps --open
 doc-watch:
-	@cargo watch -x 'doc --no-deps --open'
+	@cargo watch -x 'doc --no-deps --workspace --open'
 
 style-check:
 	@cargo fmt --all -- --check

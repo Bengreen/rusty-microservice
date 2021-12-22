@@ -91,8 +91,6 @@ mod tests {
         assert!(process(3).is_ok(), "process should be registered");
         unset_service();
         assert!(process(3).is_err(), "process should not be registered");
-
-
     }
 
 }
