@@ -13,7 +13,6 @@ use log::info;
 #[link(name = "sample01", kind = "dylib")]
 extern "C" {
     //! CAPI methods from shared library
-    // fn test();
     fn sample01_run();
     fn sample01_init_logger_ffi(param: LogParam);
 }
@@ -111,13 +110,10 @@ pub fn main() {
             unsafe { runService(); }
             info!("runService competed");
 
-            unsafe { sample01_run(); }
-            unsafe { trigger_service(); }
+            // unsafe { sample01_run(); }
+            // unsafe { trigger_service(); }
 
-            info!("Completed execution");
-
-
-            info!("I Completed the Service and exiting");
+            info!("Completed execution. Service Closing");
         }
         None => println!("No command provided"),
         _ => unreachable!(),

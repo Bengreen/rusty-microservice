@@ -1,13 +1,15 @@
 use log::info;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
-// use env_logger::Env;
 use std::process;
 
 use ffi_log2::{init_logging, LogParam};
 
 mod k8slifecycle;
 mod uservice;
+mod ffi_service;
+
+use ffi_service::{set_service, unset_service, MyState, init, process};
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -57,14 +59,6 @@ pub extern "C" fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_
 }
 
 
-pub struct MyState {
-    // pub call_back: Box<dyn FnMut(i32) -> i32 + 'a>
-    pub init: Box<extern "C" fn(i32) -> i32>,
-    pub process: Box<extern "C" fn(i32) -> i32>,
-}
-
-static mut MY_SERVICE: Option<MyState> = None;
-
 /// Create a call back register function
 ///
 /// This will store the function provided, making it avalable when the callback is to be triggered
@@ -74,41 +68,28 @@ pub extern "C" fn register_service(
     process: extern "C" fn(i32) -> i32,
     ) -> i32 {
     // Save callback function that has been registered so it can be called later.
-
-    match get_service() {
-        Some(_b) => {
-            info!("MY_SERVICE already set");
-        }
-        None => {
-            info!("UService registering callback");
-            unsafe {
-                MY_SERVICE = Some(MyState {
-                    init: Box::new(init),
-                    process: Box::new(process),
-                });
-            }
-            info!("have registered callback");
-        }
-    }
+    set_service(MyState {
+        init: Box::new(init),
+        process: Box::new(process),
+    });
     return 1;
 }
 
-fn get_service() -> &'static Option<MyState> {
-    unsafe { &MY_SERVICE }
+#[no_mangle]
+pub extern "C" fn unregister_service()  -> i32 {
+    unset_service();
+    return 0;
 }
+
+
 
 #[no_mangle]
 pub extern "C" fn trigger_service() {
-    match get_service() {
-        Some(b) => {
-            info!("have been registered OK");
-            let x = (*b.init)(12);
-            info!("x = {} on init", x);
-            let x = (*b.process)(12);
-            info!("x = {} on process", x);
-        }
-        None => panic!("not registered yet"),
-    }
+
+    let x = init(12).expect("Service was registered");
+    info!("x = {} on init", x);
+    let x = process(17).expect("Service was registered");
+    info!("x = {} on process", x);
 }
 
 #[no_mangle]

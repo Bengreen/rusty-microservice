@@ -12,6 +12,8 @@ use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc;
 use tokio::time::sleep;
 
+use crate::ffi_service::{init, process};
+
 pub struct UServiceConfig {
     pub name: String,
 }
@@ -67,6 +69,41 @@ impl UService {
     }
 }
 
+async fn init_service() -> HandleChannel {
+    let loop_sleep = Duration::from_secs(5);
+
+    let (channel, mut rx) = mpsc::channel(1);
+    let alive = Arc::new(AtomicBool::new(true));
+
+    let handle = tokio::spawn(async move {
+        let alive_recv = alive.clone();
+        tokio::spawn(async move {
+            // Spawn a receive channel to close the loop when signal received
+            let _reci = rx.recv().await;
+            alive_recv.store(false, Ordering::Relaxed);
+            info!("Init. Stopping");
+        });
+
+        let mut my_count: i32 = 0;
+        let x = init(my_count).expect("Service should have been registed");
+        info!("Init returned {}", x);
+
+        while alive.load(Ordering::Relaxed) {
+            info!("Init. Looping");
+            let x = process(my_count).expect("Service should have been registered");
+            info!("Return from {} was {}", my_count, x);
+            my_count += 1;
+
+            sleep(loop_sleep).await;
+        }
+
+        info!("Init. Closed");
+    });
+
+    HandleChannel { handle, channel }
+}
+
+
 async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
     let mut probe = probe.clone();
     let loop_sleep = Duration::from_secs(5);
@@ -77,7 +114,7 @@ async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
     let handle = tokio::spawn(async move {
         let alive_recv = alive.clone();
         tokio::spawn(async move {
-            // Speawn a receive channel to close the loop when signal received
+            // Spawn a receive channel to close the loop when signal received
             let _reci = rx.recv().await;
             alive_recv.store(false, Ordering::Relaxed);
             info!("Setting Loop close stop");
@@ -103,6 +140,8 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
     let time_loop = HealthProbe::new("Timer", Duration::from_secs(60));
     liveness.add(&time_loop);
 
+    uservice.add(init_service().await);
+
     uservice.add(simple_loop(&time_loop).await);
     uservice.add(health_listen("health", 7979, liveness, readyness, channel_http_kill).await);
 
@@ -116,7 +155,6 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
         info!("registered signal handlers");
         tokio::select! {
             _ = tokio::signal::ctrl_c() => info!("Received ctrl-c signal"),
-            // _ = sig_ctrlc.recv() => info!("Received ctrl-c signal"),
             _ = rx_http_kill.recv() => info!("Received HTTP kill signal"),
             _ = sig_terminate.recv() => info!("Received TERM signal"),
             _ = sig_quit.recv() => info!("Received QUIT signal"),
@@ -151,7 +189,7 @@ pub fn start(config: &UServiceConfig) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::start;
+    use crate::uservice::start;
     use std::thread;
     use warp::hyper::Client;
 
@@ -164,13 +202,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unable to read probe name")]
+    // #[should_panic(expected = "Unable to read probe name")]
     fn create_probe_with_invalid_name() {
         use std::ptr;
 
-        let foo = createHealthProbe(ptr::null(), 7);
+        let foo = HealthProbe::new("TEST1", Duration::from_secs(60));
 
-        assert_eq!(foo, 12);
     }
 
     #[tokio::test]

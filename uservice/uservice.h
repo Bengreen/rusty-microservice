@@ -44,6 +44,8 @@ int createHealthProbe(const char *name,
  */
 int32_t register_service(int32_t (*init)(int32_t), int32_t (*process)(int32_t));
 
+int32_t unregister_service(void);
+
 void trigger_service(void);
 
 void uservice_init_logger_ffi(LogParam param);
