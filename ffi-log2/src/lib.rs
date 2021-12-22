@@ -200,7 +200,7 @@ static mut PARAM: Option<LogParam> = None;
 
 /** init the DLL logging by passing in the references to the implemntation of the logging
  */
-pub fn init(param: LogParam) {
+pub fn init_logging(param: LogParam) {
     let level = param.level;
     unsafe {
         if PARAM.is_some() {

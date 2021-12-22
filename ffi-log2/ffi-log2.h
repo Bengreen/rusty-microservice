@@ -39,6 +39,24 @@ typedef struct ExternCMetadata {
 } ExternCMetadata;
 
 /**
+ * FFI-safe owned Rust String.
+ */
+typedef struct RustString {
+  /**
+   * pointer to characters
+   */
+  uint8_t *ptr;
+  /**
+   * capacity
+   */
+  uintptr_t cap;
+  /**
+   * length
+   */
+  uintptr_t len;
+} RustString;
+
+/**
  * FFI-safe Record
  */
 typedef struct ExternCRecord {
@@ -49,7 +67,7 @@ typedef struct ExternCRecord {
   /**
    * fmt::Arguments<'a> are not FFI-safe, so we have no option but to format them beforehand.
    */
-  CString message;
+  struct RustString message;
   /**
    * module path RustStr
    */

@@ -42,9 +42,9 @@ int createHealthProbe(const char *name,
  *
  * This will store the function provided, making it avalable when the callback is to be triggered
  */
-int32_t register_callback(int32_t (*callback)(int32_t));
+int32_t register_service(int32_t (*init)(int32_t), int32_t (*process)(int32_t));
 
-void trigger_callback(void);
+void trigger_service(void);
 
 void uservice_init_logger_ffi(LogParam param);
 

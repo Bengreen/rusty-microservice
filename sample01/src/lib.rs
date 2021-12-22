@@ -1,6 +1,6 @@
 use log::info;
 // use std::ffi::{CStr};
-use ffi_log2::{init, LogParam};
+use ffi_log2::{init_logging, LogParam};
 
 use std::process;
 
@@ -27,7 +27,7 @@ pub extern "C" fn sample01_run() {
 
 #[no_mangle]
 pub extern "C" fn sample01_init_logger_ffi(param: LogParam) {
-    init(param);
+    init_logging(param);
     info!(
         "Logging registered for {}:{} (PID: {}) using FFI",
         NAME,

@@ -21,34 +21,23 @@ extern "C" {
 #[link(name = "uservice", kind = "dylib")]
 extern "C" {
     //! CAPI methods from shared library
-    // fn test();
-    fn runService();
-    // fn init_logger(filter_env_var: *const c_char, write_env_var: *const c_char);
-    fn register_callback(callback: extern "C" fn(i32)) -> i32;
-    fn trigger_callback();
     fn uservice_init_logger_ffi(param: LogParam);
+    fn runService();
+    fn register_service(
+        init: extern "C" fn(i32) -> i32,
+        process: extern "C" fn(i32) -> i32) -> i32;
+    fn trigger_service();
 }
 
-extern "C" fn callback(a: i32) {
-    info!("i am a log of callback from main");
+extern "C" fn init_me(a: i32) -> i32 {
+    info!("i am the init function from main");
     println!("I'm called from UService library with value {0}", a);
+    12
 }
-
-fn register_service() {
-    info!("Registering service");
-
-    unsafe {
-        register_callback(callback);
-        trigger_callback(); // Triggers the callback.
-    }
-
-    unsafe {
-        sample01_run();
-    }
-
-    // register the init function to be called by uservice on start
-    // register the process function to be called by uservice on process
-    info!("Completed registration process");
+extern "C" fn process_me(a: i32) -> i32 {
+    info!("i am the process function from main");
+    println!("I'm called from UService library with value {0}", a);
+    17
 }
 
 pub fn main() {
@@ -59,10 +48,6 @@ pub fn main() {
     let log_level = Env::default().default_filter_or("info");
     env_logger::Builder::from_env(log_level).init();
 
-    unsafe {
-        uservice_init_logger_ffi(log_param());
-        sample01_init_logger_ffi(log_param());
-    }
 
     let matches = App::new("k8s uService")
         .version("0.1.0")
@@ -114,15 +99,25 @@ pub fn main() {
         Some(("start", _start_matches)) => {
             info!("Calling start");
 
-            register_service();
-
             unsafe {
-                runService();
+                uservice_init_logger_ffi(log_param());
+                sample01_init_logger_ffi(log_param());
             }
-            info!("I AM DONE");
-            // start(&UServiceConfig {
-            //     name: String::from("simple"),
-            // });
+
+            info!("Registering service");
+            unsafe { register_service(init_me, process_me); }
+            info!("Completed registration process");
+
+            unsafe { runService(); }
+            info!("runService competed");
+
+            unsafe { sample01_run(); }
+            unsafe { trigger_service(); }
+
+            info!("Completed execution");
+
+
+            info!("I Completed the Service and exiting");
         }
         None => println!("No command provided"),
         _ => unreachable!(),
