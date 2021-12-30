@@ -32,6 +32,7 @@ Cli command to do:
 * Asynchronous across FFI interface https://michael-f-bryan.github.io/rust-ffi-guide/async.html
 * FFI Omnibus for Rust http://jakegoulding.com/rust-ffi-omnibus/integers/
 * FFI good practice https://spin.atomicobject.com/2013/02/15/ffi-foreign-function-interfaces/
+* C API design in Rust https://siliconislandblog.wordpress.com/2019/05/03/lessons-when-creating-a-c-api-from-rust/
 
 
 # actix-rs

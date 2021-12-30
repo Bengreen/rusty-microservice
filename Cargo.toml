@@ -1,5 +1,5 @@
 [package]
-name = "userviceb"
+name = "uservice_run"
 version = "0.1.0"
 edition = "2021"
 authors = ["Ben Greene <BenJGreene@gmail.com>"]
@@ -13,6 +13,7 @@ clap = "3.0.0-beta.5"
 uservice = { path = "uservice" }
 sample01 = { path = "sample01" }
 ffi-log2 = { path = "ffi-log2" }
+benchex = { path = "benchex" }
 # ffi-log = { path = "ffi-log" }
 
 # [bin]

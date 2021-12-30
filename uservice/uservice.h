@@ -53,13 +53,6 @@ int32_t register_service(int32_t (*init)(int32_t), int32_t (*process)(int32_t));
 int32_t unregister_service(void);
 
 /**
- * Call to the services that are registered
- *
- * This will run init followed by process. It expects the services to be registered before this functions is called.
- */
-void trigger_service(void);
-
-/**
  * Initialise the FFI based logging for this crate
  */
 void uservice_init_logger_ffi(LogParam param);

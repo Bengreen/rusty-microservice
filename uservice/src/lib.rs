@@ -6,10 +6,10 @@ use std::process;
 use ffi_log2::{init_logging, LogParam};
 
 mod k8slifecycle;
-mod uservice;
-mod ffi_service;
+pub mod uservice;
+pub mod ffi_service;
 
-use ffi_service::{set_service, unset_service, MyState, init, process};
+use ffi_service::{set_service, unset_service, MyState};
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -83,19 +83,6 @@ pub extern "C" fn register_service(
 pub extern "C" fn unregister_service()  -> i32 {
     unset_service();
     return 0;
-}
-
-
-/// Call to the services that are registered
-///
-/// This will run init followed by process. It expects the services to be registered before this functions is called.
-#[no_mangle]
-pub extern "C" fn trigger_service() {
-
-    let x = init(12).expect("Service was registered");
-    info!("x = {} on init", x);
-    let x = process(17).expect("Service was registered");
-    info!("x = {} on process", x);
 }
 
 

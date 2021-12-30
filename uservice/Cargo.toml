@@ -7,19 +7,18 @@ edition = "2018"
 
 [dependencies]
 # Breaking change in clap = 3.0.0-beta.4 from the README.md file
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "~1.15", features = ["full"] }
 warp = "0.3"
 atomic = "0.5"
 prometheus = { version = "0.12.0", features = ["process"] }
 lazy_static = "1.4"
 futures = "0.3.17"
-# env_logger = "0.9.0"
 log = {version = "~0.4", features = ["release_max_level_warn"]}
 rand = "0.8.4"
 ffi-log2 = { path = "../ffi-log2" }
 
 [dev-dependencies]
-criterion = { version = "0.3", features = ["async_tokio"] }
+criterion = { version = "~0.3", features = ["async_tokio", "html_reports"] }
 
 [build-dependencies]
 cbindgen = '*'
@@ -34,6 +33,5 @@ codegen-units = 1
 crate-type = [ "cdylib", "lib" ]
 
 [[bench]]
-name = "example"
+name = "uservice_callback"
 harness = false
-path = "benches/example.rs"

@@ -13,7 +13,7 @@ use log::info;
 #[link(name = "sample01", kind = "dylib")]
 extern "C" {
     //! CAPI methods from shared library
-    fn sample01_run();
+    // fn sample01_run();
     fn sample01_init_logger_ffi(param: LogParam);
 }
 
@@ -25,7 +25,6 @@ extern "C" {
     fn register_service(
         init: extern "C" fn(i32) -> i32,
         process: extern "C" fn(i32) -> i32) -> i32;
-    fn trigger_service();
 }
 
 extern "C" fn init_me(a: i32) -> i32 {

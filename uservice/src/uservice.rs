@@ -92,6 +92,7 @@ async fn init_service() -> HandleChannel {
             info!("Init. Looping");
             let x = process(my_count).expect("Service should have been registered");
             info!("Return from {} was {}", my_count, x);
+            println!("Updating count in loop");
             my_count += 1;
 
             sleep(loop_sleep).await;
@@ -204,10 +205,7 @@ mod tests {
     #[test]
     // #[should_panic(expected = "Unable to read probe name")]
     fn create_probe_with_invalid_name() {
-        use std::ptr;
-
-        let foo = HealthProbe::new("TEST1", Duration::from_secs(60));
-
+        let _foo = HealthProbe::new("TEST1", Duration::from_secs(60));
     }
 
     #[tokio::test]
