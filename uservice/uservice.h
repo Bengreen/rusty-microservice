@@ -52,6 +52,8 @@ int32_t register_service(int32_t (*init)(int32_t), int32_t (*process)(int32_t));
  */
 int32_t unregister_service(void);
 
+int32_t process(int32_t a);
+
 /**
  * Initialise the FFI based logging for this crate
  */

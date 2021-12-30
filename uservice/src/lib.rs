@@ -6,8 +6,8 @@ use std::process;
 use ffi_log2::{init_logging, LogParam};
 
 mod k8slifecycle;
-pub mod uservice;
-pub mod ffi_service;
+mod uservice;
+mod ffi_service;
 
 use ffi_service::{set_service, unset_service, MyState};
 
@@ -83,6 +83,14 @@ pub extern "C" fn register_service(
 pub extern "C" fn unregister_service()  -> i32 {
     unset_service();
     return 0;
+}
+/// Run the process function
+///
+/// Call the process function.
+/// Throws a panic if the service has not been registered prior to calling this function.
+#[no_mangle]
+pub extern "C" fn process(a: i32) -> i32 {
+    ffi_service::process(a).expect("Process was registered")
 }
 
 

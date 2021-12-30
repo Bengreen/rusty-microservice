@@ -8,8 +8,8 @@ use criterion::{
 use log::info;
 use tokio;
 
-use uservice::uservice::{start, UServiceConfig};
-use uservice::register_service;
+// use uservice::uservice::{start, UServiceConfig};
+use uservice::{register_service, runService};
 
 
 async fn do_something(size: usize) {
@@ -25,7 +25,7 @@ fn uservice_callback(c: &mut Criterion) {
     use warp::hyper::http::StatusCode;
     use warp::hyper::Client;
 
-    use uservice::ffi_service::process;
+    use uservice::process;
 
     // pub async fn send_http_kill<C>(client: &Client<C>) {
     pub async fn send_http_kill() {
@@ -68,10 +68,10 @@ fn uservice_callback(c: &mut Criterion) {
         println!("Registered init and process");
 
         println!("Loaded background thread for running server");
-        let config = UServiceConfig {
-            name: String::from("test0"),
-        };
-        start(&config);
+        // let config = UServiceConfig {
+        //     name: String::from("test0"),
+        // };
+        runService();
         println!("Server thread stopped");
 
         //Unregister callbacks
@@ -87,11 +87,6 @@ fn uservice_callback(c: &mut Criterion) {
     let client = Client::new();
     let uri: hyper::Uri = "http://localhost:7979/health/alive".parse().unwrap();
 
-    c.bench_with_input(BenchmarkId::new("do_something", size),&size,  |b, &s| {
-        b.to_async(&rt_b).iter(|| async {
-            do_something(s).await;
-        });
-    });
 
     c.bench_with_input(BenchmarkId::new("http", size),&size,  |b, &s| {
         b.to_async(&rt_b).iter(|| async {
@@ -104,12 +99,15 @@ fn uservice_callback(c: &mut Criterion) {
     let mut group = c.benchmark_group("Callbacks");
     for i in [20i32].iter() {
 
+        // Direct call of C API
         group.bench_with_input(BenchmarkId::new("Direct", i), i,
             |b, i| b.iter(|| process_me(*i)));
 
+        // Call process on uservice
         group.bench_with_input(BenchmarkId::new("UService", i), i,
             |b, i| b.iter(|| process(*i)));
 
+        // Call wrapped C API (representing similar to uservice as it has function as indirection)
         group.bench_with_input(BenchmarkId::new("Wrapped", i), i,
             |b, i| b.iter(|| process_wrap(*i)));
 
@@ -118,9 +116,7 @@ fn uservice_callback(c: &mut Criterion) {
 
 
 
-
-
-
+    // Shutdown the Service
     thread::sleep(time::Duration::from_secs(3));
     rt_b.block_on(async {
         // send_http_kill(&client).await;
