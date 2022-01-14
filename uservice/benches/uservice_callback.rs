@@ -27,15 +27,6 @@ fn uservice_callback(c: &mut Criterion) {
 
     use uservice::process;
 
-    // pub async fn send_http_kill<C>(client: &Client<C>) {
-    pub async fn send_http_kill() {
-        let client = Client::new();
-        let uri = "http://localhost:7979/health/kill".parse().unwrap();
-        let resp = client.get(uri).await.unwrap();
-        info!("Kill Response: {}", resp.status());
-    }
-
-
     use std::sync::atomic::{AtomicI32, Ordering};
 
     static COUNT_NUM: AtomicI32 = AtomicI32::new(0);
@@ -120,19 +111,12 @@ fn uservice_callback(c: &mut Criterion) {
     thread::sleep(time::Duration::from_secs(3));
     println!("About to stop service");
     serviceStop();
-    // rt_b.block_on(async {
-    //     // send_http_kill(&client).await;
-    //     send_http_kill().await;
-    // });
+
     thandle.join().expect("UService thread complete");
 
     println!("uService shutdown happily");
 
 }
-
-
-
-
 
 
 
