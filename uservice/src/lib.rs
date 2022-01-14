@@ -1,4 +1,5 @@
-use log::info;
+use log::{info};
+use core::panic;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 use std::process;
@@ -10,6 +11,7 @@ mod uservice;
 mod ffi_service;
 
 use ffi_service::{set_service, unset_service, MyState};
+use crate::uservice::KILL_SENDER;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -19,10 +21,10 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Start the microservice and retain exec until the service exits.
 ///
 /// ```
-/// uservice::runService();
+/// uservice::serviceStart();
 /// ```
 #[no_mangle]
-pub extern "C" fn runService() {
+pub extern "C" fn serviceStart() {
     info!("Initializing the service with PID: {}", process::id());
 
     uservice::start(&uservice::UServiceConfig {
@@ -32,6 +34,31 @@ pub extern "C" fn runService() {
     info!("Closing the service");
 }
 
+#[no_mangle]
+/// Stop the microservice and wait for shutdown to complete before yielding thread
+///
+/// Signal to the running service (probably started in a thread) that the service is to be stopped.
+/// ```
+/// use std::{thread, time};
+/// let thandle = std::thread::spawn(move || {
+///     uservice::serviceStop();
+/// });
+/// thread::sleep(time::Duration::from_secs(3));
+/// uservice::serviceStop();
+///
+/// thandle.join().expect("UService thread complete");
+/// ```
+///
+pub extern "C" fn serviceStop() {
+
+    info!("Closing uservice");
+    let kill = unsafe {KILL_SENDER.as_ref().unwrap().lock().unwrap().clone() };
+    kill.blocking_send(()).expect("Send completes to async");
+
+    println!("Stop request completed. Waiting for service halt.");
+}
+
+#[no_mangle]
 /// Create a health probe
 ///
 /// Create a health probe that can be used to track health of a part of the service and used within a healthcheck to create a readiness or liveness check.

@@ -11,8 +11,14 @@ use std::time::Duration;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc;
 use tokio::time::sleep;
+use tokio::sync::mpsc::{Sender, Receiver};
+
 
 use crate::ffi_service::{init, process};
+
+/// Suggestion from here on how to make a static sender https://users.rust-lang.org/t/global-sync-mpsc-channel-is-possible/14476
+pub static mut KILL_SENDER: Option<Mutex<Sender<()>>> = None;
+
 
 pub struct UServiceConfig {
     pub name: String,
@@ -134,7 +140,7 @@ async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
     HandleChannel { handle, channel }
 }
 
-pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness: &HealthCheck) {
+pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness: &HealthCheck, mut kill_signal: Receiver<()>) {
     // ToDo: Look at this for clue on how to run on LocalSet : https://docs.rs/tokio/1.9.0/tokio/task/struct.LocalSet.html
     let (channel_http_kill, mut rx_http_kill) = mpsc::channel::<()>(1);
 
@@ -154,8 +160,10 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
         let mut sig_hup = signal(SignalKind::hangup()).expect("Register hangup signal handler");
 
         info!("registered signal handlers");
+
         tokio::select! {
             _ = tokio::signal::ctrl_c() => info!("Received ctrl-c signal"),
+            _ = kill_signal.recv() => info!("Received kill from library"),
             _ = rx_http_kill.recv() => info!("Received HTTP kill signal"),
             _ = sig_terminate.recv() => info!("Received TERM signal"),
             _ = sig_quit.recv() => info!("Received QUIT signal"),
@@ -174,6 +182,10 @@ pub fn start(config: &UServiceConfig) {
     info!("uService: Start");
     let liveness = HealthCheck::new("liveness");
     let readyness = HealthCheck::new("readyness");
+    let (channel_kill, rx_kill) = mpsc::channel::<()>(1);
+    unsafe {
+        KILL_SENDER = Some(Mutex::new(channel_kill));
+    }
 
     let uservice = UService::new(&config.name);
     let rt = tokio::runtime::Builder::new_current_thread()
@@ -182,7 +194,7 @@ pub fn start(config: &UServiceConfig) {
         .expect("Runtime created in current thread");
     let _guard = rt.enter();
 
-    rt.block_on(start_async(&uservice, &liveness, &readyness));
+    rt.block_on(start_async(&uservice, &liveness, &readyness, rx_kill));
 
     info!("uService {}: Stop", config.name);
 }

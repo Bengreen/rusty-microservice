@@ -16,10 +16,28 @@
  * Start the microservice and retain exec until the service exits.
  *
  * ```
- * uservice::runService();
+ * uservice::serviceStart();
  * ```
  */
-void runService(void);
+void serviceStart(void);
+
+/**
+ * Stop the microservice and wait for shutdown to complete before yielding thread
+ *
+ * Signal to the running service (probably started in a thread) that the service is to be stopped.
+ * ```
+ * use std::{thread, time};
+ * let thandle = std::thread::spawn(move || {
+ *     uservice::serviceStop();
+ * });
+ * thread::sleep(time::Duration::from_secs(3));
+ * uservice::serviceStop();
+ *
+ * thandle.join().expect("UService thread complete");
+ * ```
+ *
+ */
+void serviceStop(void);
 
 /**
  * Create a health probe
@@ -52,6 +70,12 @@ int32_t register_service(int32_t (*init)(int32_t), int32_t (*process)(int32_t));
  */
 int32_t unregister_service(void);
 
+/**
+ * Run the process function
+ *
+ * Call the process function.
+ * Throws a panic if the service has not been registered prior to calling this function.
+ */
 int32_t process(int32_t a);
 
 /**

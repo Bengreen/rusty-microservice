@@ -21,7 +21,7 @@ extern "C" {
 extern "C" {
     //! CAPI methods from shared library
     fn uservice_init_logger_ffi(param: LogParam);
-    fn runService();
+    fn serviceStart();
     fn register_service(
         init: extern "C" fn(i32) -> i32,
         process: extern "C" fn(i32) -> i32) -> i32;
@@ -56,7 +56,7 @@ pub fn main() {
                 .short('c')
                 .long("config")
                 .value_name("FILE")
-                .about("Sets a custom config file")
+                .help("Sets a custom config file")
                 .takes_value(true),
         )
         .arg(
@@ -64,7 +64,7 @@ pub fn main() {
                 .short('v')
                 .multiple_occurrences(true)
                 .takes_value(true)
-                .about("Sets the level of verbosity"),
+                .help("Sets the level of verbosity"),
         )
         .subcommand(App::new("validate").about("Validate input yaml"))
         .subcommand(App::new("start").about("Start service"))
@@ -106,8 +106,8 @@ pub fn main() {
             unsafe { register_service(init_me, process_me); }
             info!("Completed registration process");
 
-            unsafe { runService(); }
-            info!("runService competed");
+            unsafe { serviceStart(); }
+            info!("serviceStart competed");
 
             // unsafe { sample01_run(); }
             // unsafe { trigger_service(); }

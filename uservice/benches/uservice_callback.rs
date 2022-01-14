@@ -9,7 +9,7 @@ use log::info;
 use tokio;
 
 // use uservice::uservice::{start, UServiceConfig};
-use uservice::{register_service, runService};
+use uservice::{register_service, serviceStart, serviceStop};
 
 
 async fn do_something(size: usize) {
@@ -71,7 +71,7 @@ fn uservice_callback(c: &mut Criterion) {
         // let config = UServiceConfig {
         //     name: String::from("test0"),
         // };
-        runService();
+        serviceStart();
         println!("Server thread stopped");
 
         //Unregister callbacks
@@ -118,10 +118,12 @@ fn uservice_callback(c: &mut Criterion) {
 
     // Shutdown the Service
     thread::sleep(time::Duration::from_secs(3));
-    rt_b.block_on(async {
-        // send_http_kill(&client).await;
-        send_http_kill().await;
-    });
+    println!("About to stop service");
+    serviceStop();
+    // rt_b.block_on(async {
+    //     // send_http_kill(&client).await;
+    //     send_http_kill().await;
+    // });
     thandle.join().expect("UService thread complete");
 
     println!("uService shutdown happily");
