@@ -63,7 +63,7 @@ fn ffi_calls(c: &mut Criterion) {
 
     register_service(init_me, process_me);
 
-    let mut group = c.benchmark_group("FFI Calls");
+    let mut group = c.benchmark_group("Process Calls");
     for i in [20i32, 21i32, 22i32].iter() {
 
         // Direct call of C API
