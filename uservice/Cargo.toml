@@ -20,6 +20,7 @@ ffi-log2 = { path = "../ffi-log2" }
 [dev-dependencies]
 criterion = { version = "~0.3", features = ["async_tokio", "html_reports"] }
 
+
 [build-dependencies]
 cbindgen = '*'
 

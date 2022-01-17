@@ -23,6 +23,10 @@ criterion = { version = "~0.3", features = ["async_tokio", "html_reports"] }
 # [bin]
 # name = "uservicestart"
 
+# [[bench]]
+# name = "my_benchmark"
+# harness = false
+
 [[bench]]
-name = "my_benchmark"
+name = "ffi_calls"
 harness = false

@@ -16,8 +16,8 @@ Create a small runtime that implements the following.
  * [x] Web service with metrics and logs
  * [x] Benchmark to see/view performance of uService
  * [ ] Kafka support behind a feature control
- * [ ] Correctly implement logging so that exec provides the logging implementation and the library references it: https://github.com/rust-lang/log/issues/421
-
+ * [x] Correctly implement logging so that exec provides the logging implementation and the library references it: https://github.com/rust-lang/log/issues/421
+ * [ ] Benchmark difference between function called directly and via ffi callback
 
 
 # Details Docs/Planning
