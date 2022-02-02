@@ -3,7 +3,7 @@ WORKDIR /usr/src
 
 RUN rustup target add x86_64-unknown-linux-musl
 
-ARG APP_NAME=hello
+ARG APP_NAME=uservice_run
 RUN USER=root cargo new ${APP_NAME} && \
   touch ${APP_NAME}/src/lib.rs
 
@@ -12,9 +12,12 @@ COPY Cargo.toml Cargo.lock ./
 RUN cargo update && \
     cargo build --release --target x86_64-unknown-linux-musl
 
-COPY src ./src/
 COPY benches ./benches/
-COPY examples ./examples/
+COPY ffi-log2 ./ffi-log2/
+COPY hello ./hello/
+COPY sample01 ./sample01/
+COPY src ./src/
+COPY uservice ./uservice/
 
 RUN touch src/*
 
@@ -29,4 +32,3 @@ COPY --from=build /usr/src/${APP_NAME}/target/x86_64-unknown-linux-musl/release/
 USER 1000
 
 CMD ["/hello", "start"]
-
