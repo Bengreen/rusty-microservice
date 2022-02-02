@@ -52,6 +52,15 @@ pub fn main() {
         .author("B. Greene <BenJGreene+github@gmail.com>")
         .about("Rust uService")
         .arg(
+            Arg::new("library")
+                .short('l')
+                .long("library")
+                .default_value("sample01")
+                .value_name("LIBRARY")
+                .help("Library to dynamically load for process functions")
+                .takes_value(true),
+        )
+        .arg(
             Arg::new("config")
                 .short('c')
                 .long("config")
@@ -70,6 +79,16 @@ pub fn main() {
         .subcommand(App::new("start").about("Start service"))
         .subcommand(App::new("version").about("Version info"))
         .get_matches();
+
+    let library = matches
+        .value_of("library").expect("Library value configured");
+
+
+
+    // if let Some(library) = matches.value_of("library") {
+    //     println!("Loading library: {}", library);
+    //     panic!("Library loading not working yet")
+    // }
 
     if let Some(c) = matches.value_of("config") {
         println!("Value for config: {}", c);
@@ -96,6 +115,20 @@ pub fn main() {
         }
         Some(("start", _start_matches)) => {
             info!("Calling start");
+
+            info!("Loading library {}", library);
+
+
+            // let lib =;
+            let lib =  match unsafe { libloading::Library::new(library) } {
+                Ok(lib) => lib,
+                Err(error) => panic!("Problem opening the file: {:?}", error),
+            };
+            let process_func: libloading::Symbol<unsafe extern fn() -> u32> = match unsafe {lib.get(b"process")} {
+                Ok(func) => func,
+                Err(error) => panic!("Could not find process function in {} and had error {:?}", library, error),
+            };
+            // let process = match  libloading::Symbol<unsafe extern fn() -> u32> = lib.get(b"my_func");
 
             unsafe {
                 uservice_init_logger_ffi(log_param());
