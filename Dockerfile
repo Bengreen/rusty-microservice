@@ -1,37 +1,20 @@
-FROM rust:latest as build
-WORKDIR /usr/src
+FROM lukemathwalker/cargo-chef:latest-rust-1.53.0 AS chef
+WORKDIR app
 
-# RUN rustup target add x86_64-unknown-linux-musl
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-ARG APP_NAME=uservice_run
-RUN USER=root cargo new ${APP_NAME} && \
-  touch ${APP_NAME}/src/lib.rs
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY . .
+RUN cargo build --release --bin app
 
-WORKDIR /usr/src/${APP_NAME}
-COPY Cargo.toml Cargo.lock ./
-#RUN cargo update && \
-#    cargo build --release
-    # cargo build --release --target x86_64-unknown-linux-musl
-
-COPY benches ./benches/
-COPY ffi-log2 ./ffi-log2/
-COPY hello ./hello/
-COPY sample01 ./sample01/
-COPY src ./src/
-COPY uservice ./uservice/
-
-RUN touch src/*
-
-RUN cargo update && \
-    cargo build --release
-# RUN cargo build --release --target x86_64-unknown-linux-musl
-# RUN strip target/x86_64-unknown-linux-musl/release/${APP_NAME}
-
-
-# FROM scratch
-# ARG APP_NAME=hello
-# COPY --from=build /usr/src/${APP_NAME}/target/x86_64-unknown-linux-musl/release/${APP_NAME} .
-
-# USER 1000
-
-# CMD ["/hello", "start"]
+# We do not need the Rust toolchain to run the binary!
+FROM debian:buster-slim AS runtime
+WORKDIR app
+COPY --from=builder /app/target/release/app /usr/local/bin
+ENTRYPOINT ["/usr/local/bin/app"]
