@@ -1,5 +1,7 @@
 CARGO:=cargo
 
+IMAGE_NAME=rusty-microservice
+
 build:
 	cargo build
 
@@ -17,10 +19,10 @@ run:
 	cargo run -- listen
 
 docker:
-	docker build -t rusty-microservice .
+	docker build -t $(IMAGE_NAME) .
 
 docker-shell: docker
-	docker run -it rusty-microservice
+	docker run -it $(IMAGE_NAME)
 
 docker-tag: docker
 	docker tag rust_hello:latest rust_hello:1.0.0
