@@ -20,4 +20,4 @@ COPY --from=builder /app/target/release/uservice_run /usr/local/bin/
 COPY --from=builder /app/target/release/deps/libuservice.so /app/target/release/deps/libsample01.so /usr/local/lib/
 RUN ldconfig
 #COPY --from=builder /app/target/release/app /usr/local/bin
-#ENTRYPOINT ["/usr/local/bin/app"]
+ENTRYPOINT ["/usr/local/bin/uservice_run", "-l", "libuservice.so", "start"]
