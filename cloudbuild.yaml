@@ -1,8 +1,10 @@
 timeout: 15m
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: [ 'build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/rusty', '.' ]
+  args: [ 'build', '-t', 'gcr.io/$PROJECT_ID/rusty-build', '.' ]
 - name: 'gcr.io/cloud-builders/docker'
-  args: [ 'tag', 'us-central1-docker.pkg.dev/$PROJECT_ID/rusty', 'us-central1-docker.pkg.dev/$PROJECT_ID/rusty-microservice/rusty:$REVISION_ID' ]
+  args: [ 'tag', 'gcr.io/$PROJECT_ID/rusty-build', 'gcr.io/$PROJECT_ID/rusty-microservice:$REVISION_ID' ]
+- name: 'gcr.io/cloud-builders/docker'
+  args: [ 'tag', 'gcr.io/$PROJECT_ID/rusty-build', 'gcr.io/$PROJECT_ID/rusty-microservice:latest' ]
 images:
-- 'us-central1-docker.pkg.dev/$PROJECT_ID/rusty-microservice/rusty'
+- 'gcr.io/$PROJECT_ID/rusty-microservice'
