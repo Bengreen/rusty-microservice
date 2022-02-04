@@ -1,3 +1,4 @@
+# Notes on using cargo chef to build inside docker: https://github.com/LukeMathWalker/cargo-chef
 FROM lukemathwalker/cargo-chef:latest-rust-latest AS chef
 WORKDIR app
 

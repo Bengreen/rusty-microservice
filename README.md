@@ -18,6 +18,7 @@ Create a small runtime that implements the following.
  * [ ] Kafka support behind a feature control
  * [x] Correctly implement logging so that exec provides the logging implementation and the library references it: https://github.com/rust-lang/log/issues/421
  * [ ] Benchmark difference between function called directly and via ffi callback
+ * [x] Docker build for cargo: https://github.com/LukeMathWalker/cargo-chef
 
 
 # Details Docs/Planning
