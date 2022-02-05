@@ -328,7 +328,7 @@ mod tests {
 
     #[test]
     fn health_probe_ticking() {
-        //! Test that a HalthProbe provides valid and clears valid when tick'ed
+        //! Test that a HealthProbe provides valid and clears valid when tick'ed
 
         let mut health_probe = HealthProbe::new("HealthCheck", Duration::from_millis(15));
 

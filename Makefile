@@ -33,6 +33,9 @@ rollout:
 bloat:
 	cargo bloat --release -n 10
 
+k8sshell:
+	kubectl run -i --tty alpine --image=alpine:latest --rm --restart=Never -- sh -c "apk add curl  && exec sh"
+
 doc:
 	@cargo doc --no-deps --open
 doc-watch:

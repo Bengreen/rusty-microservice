@@ -1,0 +1,14 @@
+# Provide resources for deployment
+---
+resources:
+  limits:
+    cpu: 100m
+    memory: 10Mi
+  requests:
+    cpu: 10m
+    memory: 5Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10

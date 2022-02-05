@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: nginx
+  repository: us-docker.pkg.dev/istiotest-285618/rusty-microservice/rusty
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: latest
 
 imagePullSecrets: []
 nameOverride: ""

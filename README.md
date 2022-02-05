@@ -63,6 +63,25 @@ Connect to cluster
    gcloud container clusters get-credentials ${CLUSTER} --region ${REGION} --project ${PROJECT}
    ```
 
+Setup VSCode for gcloud
+Follow these instructions: https://medium.com/@alex.burdenko/vs-code-happens-to-be-my-favorite-code-editor-and-ive-been-lucky-to-participate-so-many-diverse-952102856a7a
+
+   ```bash
+   gcloud cloud-shell ssh --dry-run
+   ```
+
+Then get hostname and write the hostname to the Gateway Config.
+
+# Docker Developer testing
+
+Pull down the docker image that has been build using google
+
+   ```bash
+   docker pull us-docker.pkg.dev/istiotest-285618/rusty-microservice/rusty
+
+   docker run -it us-docker.pkg.dev/istiotest-285618/rusty-microservice/rusty:latest
+   ```
+
 # actix-rs
 
 Actix-rs appears to be the bigger better supported web framework in rust but seems to be quite heavyweight in terms of getting it started. It starts with threaded responses and web servers wihtin those. Also when trying to get it started it requires to be run on an async main which may be tricky to map into clap for CLI parsing.

@@ -20,3 +20,7 @@
   echo "Visit http://127.0.0.1:8080 to use your application"
   kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:$CONTAINER_PORT
 {{- end }}
+
+{{- if not (empty .Values.resources) }}
+Resources provided for deployment. But if using Autopilot these will be scaled up to the next matching unit of memory, cpu and ephemeral storage.
+{{ end }}
