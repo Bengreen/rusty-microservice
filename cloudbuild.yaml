@@ -4,5 +4,7 @@ steps:
   args: [ 'build', '-t', 'rusty-build', '.' ]
 - name: 'gcr.io/cloud-builders/docker'
   args: [ 'tag', 'rusty-build', 'us-docker.pkg.dev/$PROJECT_ID/rusty-microservice/rusty:$REVISION_ID' ]
+- name: 'gcr.io/cloud-builders/docker'
+  args: [ 'tag', 'rusty-build', 'us-docker.pkg.dev/$PROJECT_ID/rusty-microservice/rusty:latest' ]
 images:
 - 'us-docker.pkg.dev/$PROJECT_ID/rusty-microservice/rusty'

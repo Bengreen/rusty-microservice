@@ -36,6 +36,33 @@ Cli command to do:
 * C API design in Rust https://siliconislandblog.wordpress.com/2019/05/03/lessons-when-creating-a-c-api-from-rust/
 
 
+# Setup test for k8s
+
+Setup k8s cluster and deploy sample application to it
+
+Connect to gcloud shell
+
+   ```bash
+   gcloud cloud-shell ssh --authorize-session
+   ```
+
+Create k8s cluster
+
+   ```bash
+
+   export PROJECT=istiotest-285618
+   export CLUSTER=test0
+   export REGION=us-central1
+   gcloud container --project "${PROJECT}" clusters create-auto "${CLUSTER}" --region "${REGION}" --release-channel "regular" --network "projects/${PROJECT}/global/networks/default" --subnetwork "projects/${PROJECT}/regions/${REGION}/subnetworks/default"
+   # --cluster-ipv4-cidr "/17" --services-ipv4-cidr "/22"
+   ```
+
+Connect to cluster
+
+   ```bash
+   gcloud container clusters get-credentials ${CLUSTER} --region ${REGION} --project ${PROJECT}
+   ```
+
 # actix-rs
 
 Actix-rs appears to be the bigger better supported web framework in rust but seems to be quite heavyweight in terms of getting it started. It starts with threaded responses and web servers wihtin those. Also when trying to get it started it requires to be run on an async main which may be tricky to map into clap for CLI parsing.
