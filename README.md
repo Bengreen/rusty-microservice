@@ -16,7 +16,9 @@ Create a small runtime that implements the following.
  * [x] Web service with metrics and logs
  * [x] Benchmark to see/view performance of uService
  * [ ] Kafka support behind a feature control
-
+ * [x] Correctly implement logging so that exec provides the logging implementation and the library references it: https://github.com/rust-lang/log/issues/421
+ * [ ] Benchmark difference between function called directly and via ffi callback
+ * [x] Docker build for cargo: https://github.com/LukeMathWalker/cargo-chef
 
 
 # Details Docs/Planning
@@ -25,6 +27,67 @@ Cli command to do:
 
 * parse - parse config and validate
 * start - start the service and be responsive to readiness/liveness
+
+# Reading list
+
+* Asynchronous across FFI interface https://michael-f-bryan.github.io/rust-ffi-guide/async.html
+* FFI Omnibus for Rust http://jakegoulding.com/rust-ffi-omnibus/integers/
+* FFI good practice https://spin.atomicobject.com/2013/02/15/ffi-foreign-function-interfaces/
+* C API design in Rust https://siliconislandblog.wordpress.com/2019/05/03/lessons-when-creating-a-c-api-from-rust/
+
+
+# Setup test for k8s
+
+Setup k8s cluster and deploy sample application to it
+
+Connect to gcloud shell
+
+   ```bash
+   gcloud cloud-shell ssh --authorize-session
+   ```
+
+Create k8s cluster
+
+   ```bash
+
+   export PROJECT=istiotest-285618
+   export CLUSTER=test0
+   export REGION=us-central1
+   gcloud container --project "${PROJECT}" clusters create-auto "${CLUSTER}" --region "${REGION}" --release-channel "regular" --network "projects/${PROJECT}/global/networks/default" --subnetwork "projects/${PROJECT}/regions/${REGION}/subnetworks/default"
+   # --cluster-ipv4-cidr "/17" --services-ipv4-cidr "/22"
+   ```
+
+Connect to cluster
+
+   ```bash
+   gcloud container clusters get-credentials ${CLUSTER} --region ${REGION} --project ${PROJECT}
+   ```
+
+Setup VSCode for gcloud
+Follow these instructions: https://medium.com/@alex.burdenko/vs-code-happens-to-be-my-favorite-code-editor-and-ive-been-lucky-to-participate-so-many-diverse-952102856a7a
+
+   ```bash
+   gcloud cloud-shell ssh --dry-run
+   ```
+
+Then get hostname and write the hostname to the Gateway Config.
+
+Delete the cluster
+
+   ```bash
+   gcloud container --project "${PROJECT}" clusters delete "${CLUSTER}" --region "${REGION}"
+   ```
+
+
+# Docker Developer testing
+
+Pull down the docker image that has been build using google
+
+   ```bash
+   docker pull us-docker.pkg.dev/istiotest-285618/rusty-microservice/rusty
+
+   docker run -it us-docker.pkg.dev/istiotest-285618/rusty-microservice/rusty:latest
+   ```
 
 # actix-rs
 
@@ -43,6 +106,14 @@ Size for minimal service with liveness, readyness and prometheus metrics = 3.26M
 Web service to include minimal serving functions.
 Web service to capture prometheus metrics
 Web service to write logs
+
+# Run service then test the HUP signal
+
+Run the service then find the PID and send HUP signal
+
+   ./target/debug/uservice start
+
+   kill -HUP <PID>
 
 # Benchmarks
 

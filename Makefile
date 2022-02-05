@@ -1,5 +1,7 @@
 CARGO:=cargo
 
+IMAGE_NAME=rusty-microservice
+
 build:
 	cargo build
 
@@ -17,10 +19,10 @@ run:
 	cargo run -- listen
 
 docker:
-	docker build -t rust_hello .
+	docker build -t $(IMAGE_NAME) .
 
 docker-shell: docker
-	docker run -it rust_hello
+	docker run -it $(IMAGE_NAME)
 
 docker-tag: docker
 	docker tag rust_hello:latest rust_hello:1.0.0
@@ -31,10 +33,13 @@ rollout:
 bloat:
 	cargo bloat --release -n 10
 
+k8sshell:
+	kubectl run -i --tty alpine --image=alpine:latest --rm --restart=Never -- sh -c "apk add curl  && exec sh"
+
 doc:
 	@cargo doc --no-deps --open
 doc-watch:
-	@cargo watch -x 'doc --no-deps --open'
+	@cargo watch -x 'doc --no-deps --workspace --open'
 
 style-check:
 	@cargo fmt --all -- --check

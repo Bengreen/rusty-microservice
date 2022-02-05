@@ -1,8 +1,9 @@
 //! supporting functions for a microservice
 
-use crate::HandleChannel;
+use crate::uservice::HandleChannel;
 use atomic::Atomic;
 use lazy_static::lazy_static;
+use log::info;
 use prometheus::{HistogramOpts, HistogramVec, IntCounter, IntCounterVec, Opts, Registry};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
@@ -10,8 +11,6 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use warp::Filter;
-use log::{info};
-
 
 lazy_static! {
     pub static ref INCOMING_REQUESTS: IntCounter =
@@ -87,7 +86,6 @@ impl Clone for HealthProbe {
     }
 }
 
-
 /// A structure to create kubernetes health checks.
 ///
 /// [HealthProbe]s can be added to it and these then must be updated at regular intervals or will result in failing the [HealthCheck].
@@ -106,7 +104,6 @@ pub struct HealthCheck {
 }
 
 impl HealthCheck {
-
     /// Create new [HealthCheck]
     pub fn new(name: &str) -> HealthCheck {
         info!("Creating HealthCheck: {}", name);
@@ -153,7 +150,12 @@ pub async fn health_listen<'a>(
 
     register_custom_metrics();
 
-    let api = filters::health(basepath, liveness.clone(), readyness.clone(), channel_http_kill);
+    let api = filters::health(
+        basepath,
+        liveness.clone(),
+        readyness.clone(),
+        channel_http_kill,
+    );
 
     let routes = api.with(warp::log("health"));
 
@@ -224,7 +226,8 @@ mod filters {
 
     fn with_channel(
         channel: tokio::sync::mpsc::Sender<()>,
-    ) -> impl Filter<Extract = (tokio::sync::mpsc::Sender<()>,), Error = std::convert::Infallible> + Clone {
+    ) -> impl Filter<Extract = (tokio::sync::mpsc::Sender<()>,), Error = std::convert::Infallible> + Clone
+    {
         warp::any().map(move || channel.clone())
     }
 
@@ -241,12 +244,14 @@ mod filters {
 mod handlers {
     use crate::k8slifecycle::HealthCheck;
     use crate::k8slifecycle::REGISTRY;
+    use log::{debug, info};
     use std::convert::Infallible;
     use warp::http::StatusCode;
-    use log::{info, debug};
 
     /// Creates a signal to close the uservice cleanly
-    pub async fn kill(channel: tokio::sync::mpsc::Sender<()>) -> Result<impl warp::Reply, Infallible> {
+    pub async fn kill(
+        channel: tokio::sync::mpsc::Sender<()>,
+    ) -> Result<impl warp::Reply, Infallible> {
         info!("Kill signal received");
         channel.send(()).await.expect("Kill signal should be sent");
         Ok("OK")
@@ -323,7 +328,7 @@ mod tests {
 
     #[test]
     fn health_probe_ticking() {
-        //! Test that a HalthProbe provides valid and clears valid when tick'ed
+        //! Test that a HealthProbe provides valid and clears valid when tick'ed
 
         let mut health_probe = HealthProbe::new("HealthCheck", Duration::from_millis(15));
 

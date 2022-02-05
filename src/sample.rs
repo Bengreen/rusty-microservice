@@ -1,6 +1,6 @@
 //! Sample microservice demonstrating lifecycle hooks and small runtime loop with health probe included.
 
-use crate::HandleChannel;
+use crate::uservice::HandleChannel;
 use tokio::sync::mpsc;
 use warp::Filter;
 use log::{info};

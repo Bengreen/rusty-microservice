@@ -1,32 +1,24 @@
-FROM rust:latest as build
-WORKDIR /usr/src
+# Notes on using cargo chef to build inside docker: https://github.com/LukeMathWalker/cargo-chef
+FROM lukemathwalker/cargo-chef:latest-rust-latest AS chef
+WORKDIR app
 
-RUN rustup target add x86_64-unknown-linux-musl
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-ARG APP_NAME=hello
-RUN USER=root cargo new ${APP_NAME} && \
-  touch ${APP_NAME}/src/lib.rs
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY . .
+RUN cargo build --release
 
-WORKDIR /usr/src/${APP_NAME}
-COPY Cargo.toml Cargo.lock ./
-RUN cargo update && \
-    cargo build --release --target x86_64-unknown-linux-musl
-
-COPY src ./src/
-COPY benches ./benches/
-COPY examples ./examples/
-
-RUN touch src/*
-
-RUN cargo build --release --target x86_64-unknown-linux-musl
-RUN strip target/x86_64-unknown-linux-musl/release/${APP_NAME}
-
-
-FROM scratch
-ARG APP_NAME=hello
-COPY --from=build /usr/src/${APP_NAME}/target/x86_64-unknown-linux-musl/release/${APP_NAME} .
-
-USER 1000
-
-CMD ["/hello", "start"]
-
+# We do not need the Rust toolchain to run the binary!
+FROM debian:buster-slim AS runtime
+WORKDIR app
+COPY --from=builder /app/target/release/uservice_run /usr/local/bin/
+COPY --from=builder /app/target/release/deps/libuservice.so /app/target/release/deps/libsample01.so /usr/local/lib/
+RUN ldconfig
+#COPY --from=builder /app/target/release/app /usr/local/bin
+ENTRYPOINT ["/usr/local/bin/uservice_run", "-l", "libuservice.so", "start"]

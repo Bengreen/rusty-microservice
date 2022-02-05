@@ -1,0 +1,33 @@
+[package]
+name = "sample01"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Breaking change in clap = 3.0.0-beta.4 from the README.md file
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
+atomic = "0.5"
+prometheus = { version = "0.12.0", features = ["process"] }
+lazy_static = "1.4"
+futures = "0.3.17"
+log = {version = "0.4.14", features = ["release_max_level_warn"]}
+rand = "0.8.4"
+ffi-log2 = { path = "../ffi-log2" }
+
+[dev-dependencies]
+criterion = { version = "0.3", features = ["async_tokio"] }
+
+[build-dependencies]
+cbindgen = '*'
+
+[profile.release]
+lto = true
+codegen-units = 1
+# strip = true # Automatically strip symbols from the binary. (ONLY available in nightly)
+
+
+[lib]
+crate-type = [ "cdylib", "lib" ]
