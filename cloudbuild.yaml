@@ -3,8 +3,8 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: [ 'build', '-t', 'rusty-build', '.' ]
 - name: 'gcr.io/cloud-builders/docker'
-  args: [ 'tag', 'rusty-build', 'us-docker.pkg.dev/$PROJECT_ID/gcr.io/rusty-microservice:$REVISION_ID' ]
+  args: [ 'tag', 'rusty-build', 'us-docker.pkg.dev/$PROJECT_ID/rusty-microservice:$REVISION_ID' ]
 - name: 'gcr.io/cloud-builders/docker'
-  args: [ 'tag', 'rusty-build', 'us-docker.pkg.dev/$PROJECT_ID/gcr.io/rusty-microservice:latest' ]
+  args: [ 'tag', 'rusty-build', 'us-docker.pkg.dev/$PROJECT_ID/rusty-microservice:latest' ]
 images:
-- 'us-docker.pkg.dev/$PROJECT_ID/gcr.io/rusty-microservice'
+- 'us-docker.pkg.dev/$PROJECT_ID/rusty-microservice'
