@@ -72,6 +72,13 @@ Follow these instructions: https://medium.com/@alex.burdenko/vs-code-happens-to-
 
 Then get hostname and write the hostname to the Gateway Config.
 
+Delete the cluster
+
+   ```bash
+   gcloud container --project "${PROJECT}" clusters delete "${CLUSTER}" --region "${REGION}"
+   ```
+
+
 # Docker Developer testing
 
 Pull down the docker image that has been build using google
