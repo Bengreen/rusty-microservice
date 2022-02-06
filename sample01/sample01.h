@@ -15,6 +15,6 @@ extern "C" {
 /// ```
 void sample01_run();
 
-void sample01_init_logger_ffi(LogParam param);
+void init_logger(LogParam param);
 
 } // extern "C"

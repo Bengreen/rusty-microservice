@@ -2,20 +2,21 @@
 
 //! myhhfhf is a minimal microservice built as an exec (caller) and a sharedobject. This allows the library to have exposed APIs that can be called from other languages
 
-mod sample01;
+// mod sample01;
 
 // use std::os::raw::{c_char};
 use clap::{App, Arg};
 use env_logger::Env;
 use ffi_log2::{log_param, LogParam};
+use libloading::Symbol;
 use log::info;
 
-#[link(name = "sample01", kind = "dylib")]
-extern "C" {
-    //! CAPI methods from shared library
-    // fn sample01_run();
-    fn sample01_init_logger_ffi(param: LogParam);
-}
+// #[link(name = "sample01", kind = "dylib")]
+// extern "C" {
+//     //! CAPI methods from shared library
+//     // fn sample01_run();
+//     fn sample01_init_logger_ffi(param: LogParam);
+// }
 
 #[link(name = "uservice", kind = "dylib")]
 extern "C" {
@@ -27,21 +28,9 @@ extern "C" {
         process: extern "C" fn(i32) -> i32) -> i32;
 }
 
-extern "C" fn init_me(a: i32) -> i32 {
-    info!("i am the init function from main");
-    println!("I'm called from UService library with value {0}", a);
-    12
-}
-extern "C" fn process_me(a: i32) -> i32 {
-    info!("i am the process function from main");
-    println!("I'm called from UService library with value {0}", a);
-    17
-}
 
 pub fn main() {
     //! Initialise the shared library
-
-    // Initialize logging in main and use it from library
 
     let log_level = Env::default().default_filter_or("info");
     env_logger::Builder::from_env(log_level).init();
@@ -57,7 +46,7 @@ pub fn main() {
                 .long("library")
                 .default_value("sample01")
                 .value_name("LIBRARY")
-                .help("Library to dynamically load for process functions")
+                .help("Library to dynamically load for process functions. This is automatically expanded to the OS specific library name")
                 .takes_value(true),
         )
         .arg(
@@ -83,12 +72,6 @@ pub fn main() {
     let library = matches
         .value_of("library").expect("Library value configured");
 
-
-
-    // if let Some(library) = matches.value_of("library") {
-    //     println!("Loading library: {}", library);
-    //     panic!("Library loading not working yet")
-    // }
 
     if let Some(c) = matches.value_of("config") {
         println!("Value for config: {}", c);
@@ -119,31 +102,39 @@ pub fn main() {
             info!("Loading library {}", library);
 
 
-            // let lib =;
-            let lib =  match unsafe { libloading::Library::new(library) } {
+            let lib =  match unsafe { libloading::Library::new(libloading::library_filename(library)) } {
                 Ok(lib) => lib,
                 Err(error) => panic!("Problem opening the file: {:?}", error),
             };
-            let process_func: libloading::Symbol<unsafe extern fn() -> u32> = match unsafe {lib.get(b"process")} {
+            let so_process: libloading::Symbol<extern fn(i32) -> i32> = match unsafe {lib.get(b"process")} {
                 Ok(func) => func,
                 Err(error) => panic!("Could not find process function in {} and had error {:?}", library, error),
             };
-            // let process = match  libloading::Symbol<unsafe extern fn() -> u32> = lib.get(b"my_func");
+            let so_init: libloading::Symbol<extern fn(i32) -> i32> = match unsafe {lib.get(b"init")} {
+                Ok(func) => func,
+                Err(error) => panic!("Could not find init function in {} and had error {:?}", library, error),
+            };
+            let so_init_logger: libloading::Symbol<unsafe extern fn(param: LogParam)> = match unsafe {lib.get(b"init_logger")} {
+                Ok(func) => func,
+                Err(error) => panic!("Could not find init_logger in {} and had error {:?}", library, error),
+            };
+
 
             unsafe {
+                so_init_logger(log_param());
                 uservice_init_logger_ffi(log_param());
-                sample01_init_logger_ffi(log_param());
+                // sample01_init_logger_ffi(log_param());
             }
 
             info!("Registering service");
-            unsafe { register_service(init_me, process_me); }
+            // ToDo: Consider/Confirm if
+            unsafe { register_service(*so_init, *so_process); }
+
             info!("Completed registration process");
 
             unsafe { serviceStart(); }
             info!("serviceStart competed");
 
-            // unsafe { sample01_run(); }
-            // unsafe { trigger_service(); }
 
             info!("Completed execution. Service Closing");
         }
