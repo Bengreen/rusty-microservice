@@ -11,7 +11,7 @@ use log::info;
 use uservice_run::{
     so_library_free_ffi, so_library_register_ffi, so_service_free_ffi, so_service_init_ffi,
     so_service_logger_init_ffi, so_service_process_ffi, so_service_register_ffi,
-    uservice_logger_init_ffi, uservice_start_ffi,
+    uservice_logger_init_ffi, uservice_start_ffi, uservice_init_ffi, uservice_add_so_ffi,
 };
 
 pub fn main() {
@@ -88,24 +88,32 @@ pub fn main() {
             uservice_logger_init_ffi(log_param());
 
             let lib = so_library_register_ffi(library).expect("So library loaded");
-            let service = so_service_register_ffi(lib).expect("Load functions from so");
+            let soservice = so_service_register_ffi(lib).expect("Load functions from so");
             info!("Service loaded");
 
-            so_service_logger_init_ffi(service, log_param());
+            info!("initialising so logging");
+            so_service_logger_init_ffi(soservice, log_param());
 
             info!("Completed registration process");
 
             info!("Testing services");
-            so_service_init_ffi(service, 21);
-            so_service_process_ffi(service, 22);
+            so_service_init_ffi(soservice, 21);
+            so_service_process_ffi(soservice, 22);
+
+
             info!("Testing services.. Complete");
 
+            info!("Create UService");
+            let uservice = uservice_init_ffi("hello").expect("Initialise uservice");
+            uservice_add_so_ffi(uservice, soservice);
+
+
             info!("Starting Service");
-            uservice_start_ffi(service);
+            uservice_start_ffi(uservice);
 
             info!("uservice exited");
 
-            so_service_free_ffi(service);
+            so_service_free_ffi(soservice);
 
             so_library_free_ffi(lib);
 

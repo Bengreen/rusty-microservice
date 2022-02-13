@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::sleep;
 
-use crate::ffi_service::{init, process, SoService};
+use crate::ffi_service::{SoService};
 
 /// Suggestion from here on how to make a static sender https://users.rust-lang.org/t/global-sync-mpsc-channel-is-possible/14476
 pub static mut KILL_SENDER: Option<Mutex<Sender<()>>> = None;
@@ -28,6 +28,7 @@ pub struct HandleChannel {
     pub channel: mpsc::Sender<()>,
 }
 
+#[derive(Debug)]
 pub struct UService {
     pub name: String,
     // pub rt: tokio::runtime::Runtime,
@@ -43,6 +44,9 @@ impl UService {
             channels: Arc::new(Mutex::new(vec![])),
             handles: Arc::new(Mutex::new(vec![])),
         }
+    }
+    pub fn start(&self) {
+        info!("Starting uservice here");
     }
 
     pub fn add(&self, hc: HandleChannel) {
@@ -89,13 +93,13 @@ async fn init_service() -> HandleChannel {
         });
 
         let mut my_count: i32 = 0;
-        let x = init(my_count).expect("Service should have been registed");
-        info!("Init returned {}", x);
+        // let x = init(my_count).expect("Service should have been registed");
+        // info!("Init returned {}", x);
 
         while alive.load(Ordering::Relaxed) {
             info!("Init. Looping");
-            let x = process(my_count).expect("Service should have been registered");
-            info!("Return from {} was {}", my_count, x);
+            // let x = process(my_count).expect("Service should have been registered");
+            // info!("Return from {} was {}", my_count, x);
             println!("Updating count in loop");
             my_count += 1;
 
@@ -180,7 +184,7 @@ pub async fn start_async(
 }
 
 /// Start the service (including starting the runtime (ie tokio))
-pub fn start(config: &UServiceConfig, service: &SoService) {
+pub fn start(config: &UServiceConfig, service: &UService) {
     info!("uService: Start");
     let liveness = HealthCheck::new("liveness");
     let readyness = HealthCheck::new("readyness");

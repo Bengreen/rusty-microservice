@@ -1,6 +1,7 @@
 use core::panic;
+use std::panic::catch_unwind;
 use libloading::Library;
-use log::info;
+use log::{info, error};
 
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
@@ -13,7 +14,7 @@ mod k8slifecycle;
 mod uservice;
 
 use crate::ffi_service::SoService;
-use crate::uservice::KILL_SENDER;
+use crate::uservice::{KILL_SENDER, UService};
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -41,8 +42,8 @@ pub extern "C" fn uservice_logger_init(param: LogParam) {
 /// - points to memory ending in a null byte
 /// - won't be mutated for the duration of this function call
 #[no_mangle]
-pub extern "C" fn so_library_register<'a>(library_name: *const libc::c_char) -> *mut Library {
-    let library_str: &str = match unsafe { std::ffi::CStr::from_ptr(library_name) }.to_str() {
+pub extern "C" fn so_library_register<'a>(name: *const libc::c_char) -> *mut Library {
+    let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
         Ok(s) => s,
         Err(e) => {
             panic!(
@@ -51,10 +52,10 @@ pub extern "C" fn so_library_register<'a>(library_name: *const libc::c_char) -> 
             );
         }
     };
-    info!("Registering library: {}", library_str);
+    info!("Registering library: {}", name_str);
 
     let library = Box::into_raw(Box::new(
-        unsafe { Library::new(libloading::library_filename(library_str)) }.unwrap(),
+        unsafe { Library::new(libloading::library_filename(name_str)) }.unwrap(),
     ));
 
     library
@@ -93,7 +94,7 @@ pub extern "C" fn so_service_register<'a>(ptr: *mut Library) -> *mut SoService<'
  * Free the service for the so library
  */
 #[no_mangle]
-pub extern "C" fn so_service_free<'a>(ptr: *mut SoService) {
+pub extern "C" fn so_service_free(ptr: *mut SoService) {
     if ptr.is_null() {
         return;
     }
@@ -108,7 +109,7 @@ pub extern "C" fn so_service_free<'a>(ptr: *mut SoService) {
  * Call the process function
  */
 #[no_mangle]
-pub extern "C" fn so_service_logger_init<'a>(ptr: *mut SoService, param: LogParam) {
+pub extern "C" fn so_service_logger_init(ptr: *mut SoService, param: LogParam) {
     let service = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -121,7 +122,7 @@ pub extern "C" fn so_service_logger_init<'a>(ptr: *mut SoService, param: LogPara
  * Call the init function
  */
 #[no_mangle]
-pub extern "C" fn so_service_init<'a>(ptr: *mut SoService, param: i32) -> i32 {
+pub extern "C" fn so_service_init(ptr: *mut SoService, param: i32) -> i32 {
     let service = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -134,13 +135,65 @@ pub extern "C" fn so_service_init<'a>(ptr: *mut SoService, param: i32) -> i32 {
  * Call the process function
  */
 #[no_mangle]
-pub extern "C" fn so_service_process<'a>(ptr: *mut SoService, param: i32) -> i32 {
+pub extern "C" fn so_service_process(ptr: *mut SoService, param: i32) -> i32 {
     let service = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
     };
     info!("process called");
     (&service.process)(param)
+}
+
+
+
+
+/** Initialise the UService
+ *
+ */
+#[no_mangle]
+pub extern "C" fn uservice_init(name: *const libc::c_char) -> *mut UService {
+    let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            panic!(
+                "FFI string conversion failed for registering the so library with error: {}",
+                e
+            );
+        }
+    };
+    info!("Registering library: {}", name_str);
+
+    info!("Init UService");
+
+    Box::into_raw(Box::new(UService::new(name_str)))
+}
+
+/** Free the UService
+ *
+ */
+#[no_mangle]
+pub extern "C" fn uservice_free(ptr: *mut UService) {
+    if ptr.is_null() {
+        return;
+    }
+    info!("Releasing uservice");
+
+    unsafe {
+        Box::from_raw(ptr);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn uservice_add_so(uservice_ptr: *mut UService, soservice_ptr: *mut SoService, ) {
+    let uservice = unsafe {
+        assert!(!uservice_ptr.is_null());
+        &mut *uservice_ptr
+    };
+    let soservice = unsafe {
+        assert!(!soservice_ptr.is_null());
+        &mut *soservice_ptr
+    };
+    info!("Adding {:?} to {:?}", soservice, uservice);
 }
 
 /** Start the microservice and keep exe control until it is complete
@@ -152,8 +205,8 @@ pub extern "C" fn so_service_process<'a>(ptr: *mut SoService, param: i32) -> i32
  * ```
  */
 #[no_mangle]
-pub extern "C" fn uservice_start<'a>(ptr: *mut SoService) {
-    let service = unsafe {
+pub extern "C" fn uservice_start(ptr: *mut UService) {
+    let uservice = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
     };
@@ -161,11 +214,16 @@ pub extern "C" fn uservice_start<'a>(ptr: *mut SoService) {
 
     info!("Initializing the service with PID: {}", process::id());
 
-    let config = uservice::UServiceConfig {
-        name: String::from("simple"),
-    };
+    let result = catch_unwind(|| {
+        // start the service
+        uservice.start();
+        // uservice::start(&config, service);
+    });
+    match result {
+        Ok(_) => info!("UService completed successfully"),
+        Err(_) => error!("UService had a panic"),
+    }
 
-    uservice::start(&config, service);
     info!("UService completed");
 }
 
@@ -184,13 +242,21 @@ pub extern "C" fn uservice_start<'a>(ptr: *mut SoService) {
 /// thandle.join().expect("UService thread complete");
 /// ```
 ///
-pub extern "C" fn uservice_stop() {
+pub extern "C" fn uservice_stop(ptr: *mut UService) {
     info!("Closing uservice");
     let kill = unsafe { KILL_SENDER.as_ref().unwrap().lock().unwrap().clone() };
     kill.blocking_send(()).expect("Send completes to async");
 
     println!("Stop request completed. Waiting for service halt.");
 }
+
+
+
+
+
+
+
+
 
 #[no_mangle]
 /// Create a health probe

@@ -12,6 +12,8 @@
 
 typedef struct SoService SoService;
 
+typedef struct UService UService;
+
 /**
  * Initialise the FFI based logging for this crate
  */
@@ -29,7 +31,7 @@ void uservice_logger_init(LogParam param);
  * - points to memory ending in a null byte
  * - won't be mutated for the duration of this function call
  */
-Library *so_library_register(const char *library_name);
+Library *so_library_register(const char *name);
 
 /**
  *  * Free the library
@@ -62,9 +64,21 @@ int32_t so_service_init(struct SoService *ptr, int32_t param);
 int32_t so_service_process(struct SoService *ptr, int32_t param);
 
 /**
+ * Initialise the UService  *
+ */
+struct UService *uservice_init(const char *name);
+
+/**
+ * Free the UService  *
+ */
+void uservice_free(struct UService *ptr);
+
+void uservice_add_so(struct UService *uservice_ptr, struct SoService *soservice_ptr);
+
+/**
  * Start the microservice and keep exe control until it is complete  *  * retain exec until the service exits  *  * ```  * uservice:uservice_start()  * ```
  */
-void uservice_start(struct SoService *ptr);
+void uservice_start(struct UService *ptr);
 
 /**
  * Stop the microservice and wait for shutdown to complete before yielding thread
@@ -82,7 +96,7 @@ void uservice_start(struct SoService *ptr);
  * ```
  *
  */
-void uservice_stop(void);
+void uservice_stop(struct UService *ptr);
 
 /**
  * Create a health probe

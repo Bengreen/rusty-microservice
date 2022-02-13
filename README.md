@@ -34,6 +34,7 @@ Cli command to do:
   * FFI Omnibus for Rust http://jakegoulding.com/rust-ffi-omnibus/integers/
   * FFI good practice https://spin.atomicobject.com/2013/02/15/ffi-foreign-function-interfaces/
   * FFI for fun and profit https://michael-f-bryan.github.io/rust-ffi-guide/overview.html
+  * FFI error returns https://michael-f-bryan.github.io/rust-ffi-guide/errors/return_types.html
   * Passing strings through to FFI https://rust-unofficial.github.io/patterns/idioms/ffi/passing-strings.html
   * C API design in Rust https://siliconislandblog.wordpress.com/2019/05/03/lessons-when-creating-a-c-api-from-rust/
   * Multi arch Docker build: https://www.docker.com/blog/multi-arch-images/
