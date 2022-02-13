@@ -10,16 +10,61 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+typedef struct SoService SoService;
+
 /**
- * Start the microservice and keep exe control until it is complete
- *
- * Start the microservice and retain exec until the service exits.
- *
- * ```
- * uservice::serviceStart();
- * ```
+ * Initialise the FFI based logging for this crate
  */
-void serviceStart(void);
+void uservice_logger_init(LogParam param);
+
+/**
+ * Register a shared library for by the name of the library
+ *
+ * # Safety
+ *
+ * It is the caller's guarantee to ensure `msg`:
+ *
+ * - is not a null pointer
+ * - points to valid, initialized data
+ * - points to memory ending in a null byte
+ * - won't be mutated for the duration of this function call
+ */
+Library *so_library_register(const char *library_name);
+
+/**
+ *  * Free the library
+ */
+void so_library_free(Library *ptr);
+
+/**
+ *  * Register the so functions for the library
+ */
+struct SoService *so_service_register(Library *ptr);
+
+/**
+ *  * Free the service for the so library
+ */
+void so_service_free(struct SoService *ptr);
+
+/**
+ *  * Call the process function
+ */
+void so_service_logger_init(struct SoService *ptr, LogParam param);
+
+/**
+ *  * Call the init function
+ */
+int32_t so_service_init(struct SoService *ptr, int32_t param);
+
+/**
+ *  * Call the process function
+ */
+int32_t so_service_process(struct SoService *ptr, int32_t param);
+
+/**
+ * Start the microservice and keep exe control until it is complete  *  * retain exec until the service exits  *  * ```  * uservice:uservice_start()  * ```
+ */
+void uservice_start(struct SoService *ptr);
 
 /**
  * Stop the microservice and wait for shutdown to complete before yielding thread
@@ -37,7 +82,7 @@ void serviceStart(void);
  * ```
  *
  */
-void serviceStop(void);
+void uservice_stop(void);
 
 /**
  * Create a health probe
@@ -54,33 +99,5 @@ void serviceStop(void);
  */
 int createHealthProbe(const char *name,
                       int margin_ms);
-
-/**
- * Create a call back register function
- *
- * This will store the function provided, making it avalable when the callback is to be triggered
- */
-int32_t register_service(int32_t (*init)(int32_t), int32_t (*process)(int32_t));
-
-/**
- * Unregister service from exec environment.
- *
- * Note this does not ensure to check if the function is currently running or that it may be running an async thread.
- * It simply disconnected the callback to stop it being called in future.
- */
-int32_t unregister_service(void);
-
-/**
- * Run the process function
- *
- * Call the process function.
- * Throws a panic if the service has not been registered prior to calling this function.
- */
-int32_t process(int32_t a);
-
-/**
- * Initialise the FFI based logging for this crate
- */
-void uservice_init_logger_ffi(LogParam param);
 
 #endif /* uservice_h */

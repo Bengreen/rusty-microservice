@@ -200,7 +200,7 @@ static mut PARAM: Option<LogParam> = None;
 
 /** init the DLL logging by passing in the references to the implemntation of the logging
  */
-pub fn init_logging(param: LogParam) {
+pub fn logger_init(param: LogParam) {
     let level = param.level;
     unsafe {
         if PARAM.is_some() {
@@ -215,7 +215,7 @@ pub fn init_logging(param: LogParam) {
 }
 
 fn param() -> &'static LogParam {
-    unsafe { PARAM.as_ref().unwrap() }
+    unsafe { PARAM.as_ref() }.unwrap()
 }
 
 /** Log implementation is the definition of the Interfaces used by the log library

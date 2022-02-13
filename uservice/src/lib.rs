@@ -1,37 +1,172 @@
-use log::{info};
 use core::panic;
+use libloading::Library;
+use log::info;
+
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 use std::process;
 
-use ffi_log2::{init_logging, LogParam};
+use ffi_log2::{ logger_init, LogParam};
 
+mod ffi_service;
 mod k8slifecycle;
 mod uservice;
-mod ffi_service;
 
-use ffi_service::{set_service, unset_service, MyState};
+use crate::ffi_service::SoService;
 use crate::uservice::KILL_SENDER;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Start the microservice and keep exe control until it is complete
-///
-/// Start the microservice and retain exec until the service exits.
-///
-/// ```
-/// uservice::serviceStart();
-/// ```
+/// Initialise the FFI based logging for this crate
 #[no_mangle]
-pub extern "C" fn serviceStart() {
+pub extern "C" fn uservice_logger_init(param: LogParam) {
+    logger_init(param);
+    info!(
+        "Logging registered for {}:{} (PID: {}) using FFI",
+        NAME,
+        VERSION,
+        process::id()
+    );
+}
+
+/// Register a shared library for by the name of the library
+///
+/// # Safety
+///
+/// It is the caller's guarantee to ensure `msg`:
+///
+/// - is not a null pointer
+/// - points to valid, initialized data
+/// - points to memory ending in a null byte
+/// - won't be mutated for the duration of this function call
+#[no_mangle]
+pub extern "C" fn so_library_register<'a>(library_name: *const libc::c_char) -> *mut Library {
+    let library_str: &str = match unsafe { std::ffi::CStr::from_ptr(library_name) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            panic!(
+                "FFI string conversion failed for registering the so library with error: {}",
+                e
+            );
+        }
+    };
+    info!("Registering library: {}", library_str);
+
+    let library = Box::into_raw(Box::new(
+        unsafe { Library::new(libloading::library_filename(library_str)) }.unwrap(),
+    ));
+
+    library
+}
+
+/**
+ * Free the library
+ */
+#[no_mangle]
+pub extern "C" fn so_library_free(ptr: *mut Library) {
+    if ptr.is_null() {
+        return;
+    }
+    info!("Releasing library");
+
+    unsafe {
+        Box::from_raw(ptr);
+    }
+}
+
+/**
+ * Register the so functions for the library
+ */
+#[no_mangle]
+pub extern "C" fn so_service_register<'a>(ptr: *mut Library) -> *mut SoService<'a> {
+    let library = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    info!("Registering functions");
+
+    Box::into_raw(Box::new(SoService::new(library)))
+}
+
+/**
+ * Free the service for the so library
+ */
+#[no_mangle]
+pub extern "C" fn so_service_free<'a>(ptr: *mut SoService) {
+    if ptr.is_null() {
+        return;
+    }
+    info!("Releasing service");
+
+    unsafe {
+        Box::from_raw(ptr);
+    }
+}
+
+/**
+ * Call the process function
+ */
+#[no_mangle]
+pub extern "C" fn so_service_logger_init<'a>(ptr: *mut SoService, param: LogParam) {
+    let service = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    info!("init_logger called");
+    (&service.init_logger)(param)
+}
+
+/**
+ * Call the init function
+ */
+#[no_mangle]
+pub extern "C" fn so_service_init<'a>(ptr: *mut SoService, param: i32) -> i32 {
+    let service = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    info!("init called");
+    (&service.init)(param)
+}
+
+/**
+ * Call the process function
+ */
+#[no_mangle]
+pub extern "C" fn so_service_process<'a>(ptr: *mut SoService, param: i32) -> i32 {
+    let service = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    info!("process called");
+    (&service.process)(param)
+}
+
+/** Start the microservice and keep exe control until it is complete
+ *
+ * retain exec until the service exits
+ *
+ * ```
+ * uservice:uservice_start()
+ * ```
+ */
+#[no_mangle]
+pub extern "C" fn uservice_start<'a>(ptr: *mut SoService) {
+    let service = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    info!("Uservice Start called");
+
     info!("Initializing the service with PID: {}", process::id());
 
-    uservice::start(&uservice::UServiceConfig {
+    let config = uservice::UServiceConfig {
         name: String::from("simple"),
-    });
+    };
 
-    info!("Closing the service");
+    uservice::start(&config, service);
+    info!("UService completed");
 }
 
 #[no_mangle]
@@ -49,10 +184,9 @@ pub extern "C" fn serviceStart() {
 /// thandle.join().expect("UService thread complete");
 /// ```
 ///
-pub extern "C" fn serviceStop() {
-
+pub extern "C" fn uservice_stop() {
     info!("Closing uservice");
-    let kill = unsafe {KILL_SENDER.as_ref().unwrap().lock().unwrap().clone() };
+    let kill = unsafe { KILL_SENDER.as_ref().unwrap().lock().unwrap().clone() };
     kill.blocking_send(()).expect("Send completes to async");
 
     println!("Stop request completed. Waiting for service halt.");
@@ -83,52 +217,4 @@ pub extern "C" fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_
     info!("The probe is called: {}", name_str);
 
     name_str.len() as i32 + margin_ms
-}
-
-
-/// Create a call back register function
-///
-/// This will store the function provided, making it avalable when the callback is to be triggered
-#[no_mangle]
-pub extern "C" fn register_service(
-    init: extern "C" fn(i32) -> i32,
-    process: extern "C" fn(i32) -> i32,
-    ) -> i32 {
-    // Save callback function that has been registered so it can be called later.
-    set_service(MyState {
-        init: Box::new(init),
-        process: Box::new(process),
-    });
-    return 1;
-}
-
-/// Unregister service from exec environment.
-///
-/// Note this does not ensure to check if the function is currently running or that it may be running an async thread.
-/// It simply disconnected the callback to stop it being called in future.
-#[no_mangle]
-pub extern "C" fn unregister_service()  -> i32 {
-    unset_service();
-    return 0;
-}
-/// Run the process function
-///
-/// Call the process function.
-/// Throws a panic if the service has not been registered prior to calling this function.
-#[no_mangle]
-pub extern "C" fn process(a: i32) -> i32 {
-    ffi_service::process(a).expect("Process was registered")
-}
-
-
-/// Initialise the FFI based logging for this crate
-#[no_mangle]
-pub extern "C" fn uservice_init_logger_ffi(param: LogParam) {
-    init_logging(param);
-    info!(
-        "Logging registered for {}:{} (PID: {}) using FFI",
-        NAME,
-        VERSION,
-        process::id()
-    );
 }

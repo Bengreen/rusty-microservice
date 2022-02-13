@@ -2,39 +2,23 @@
 
 //! myhhfhf is a minimal microservice built as an exec (caller) and a sharedobject. This allows the library to have exposed APIs that can be called from other languages
 
-// mod sample01;
-
-// use std::os::raw::{c_char};
 use clap::{App, Arg};
 use env_logger::Env;
-use ffi_log2::{log_param, LogParam};
-use libloading::Symbol;
+
+use ffi_log2::log_param;
 use log::info;
 
-// #[link(name = "sample01", kind = "dylib")]
-// extern "C" {
-//     //! CAPI methods from shared library
-//     // fn sample01_run();
-//     fn sample01_init_logger_ffi(param: LogParam);
-// }
-
-#[link(name = "uservice", kind = "dylib")]
-extern "C" {
-    //! CAPI methods from shared library
-    fn uservice_init_logger_ffi(param: LogParam);
-    fn serviceStart();
-    fn register_service(
-        init: extern "C" fn(i32) -> i32,
-        process: extern "C" fn(i32) -> i32) -> i32;
-}
-
+use uservice_run::{
+    so_library_free_ffi, so_library_register_ffi, so_service_free_ffi, so_service_init_ffi,
+    so_service_logger_init_ffi, so_service_process_ffi, so_service_register_ffi,
+    uservice_logger_init_ffi, uservice_start_ffi,
+};
 
 pub fn main() {
     //! Initialise the shared library
 
     let log_level = Env::default().default_filter_or("info");
     env_logger::Builder::from_env(log_level).init();
-
 
     let matches = App::new("k8s uService")
         .version("0.1.0")
@@ -70,8 +54,8 @@ pub fn main() {
         .get_matches();
 
     let library = matches
-        .value_of("library").expect("Library value configured");
-
+        .value_of("library")
+        .expect("Library value configured");
 
     if let Some(c) = matches.value_of("config") {
         println!("Value for config: {}", c);
@@ -101,42 +85,31 @@ pub fn main() {
 
             info!("Loading library {}", library);
 
+            uservice_logger_init_ffi(log_param());
 
-            let lib =  match unsafe { libloading::Library::new(libloading::library_filename(library)) } {
-                Ok(lib) => lib,
-                Err(error) => panic!("Problem opening the file: {:?}", error),
-            };
-            let so_process: libloading::Symbol<extern fn(i32) -> i32> = match unsafe {lib.get(b"process")} {
-                Ok(func) => func,
-                Err(error) => panic!("Could not find process function in {} and had error {:?}", library, error),
-            };
-            let so_init: libloading::Symbol<extern fn(i32) -> i32> = match unsafe {lib.get(b"init")} {
-                Ok(func) => func,
-                Err(error) => panic!("Could not find init function in {} and had error {:?}", library, error),
-            };
-            let so_init_logger: libloading::Symbol<unsafe extern fn(param: LogParam)> = match unsafe {lib.get(b"init_logger")} {
-                Ok(func) => func,
-                Err(error) => panic!("Could not find init_logger in {} and had error {:?}", library, error),
-            };
+            let lib = so_library_register_ffi(library).expect("So library loaded");
+            let service = so_service_register_ffi(lib).expect("Load functions from so");
+            info!("Service loaded");
 
-
-            unsafe {
-                so_init_logger(log_param());
-                uservice_init_logger_ffi(log_param());
-                // sample01_init_logger_ffi(log_param());
-            }
-
-            info!("Registering service");
-            // ToDo: Consider/Confirm if
-            unsafe { register_service(*so_init, *so_process); }
+            so_service_logger_init_ffi(service, log_param());
 
             info!("Completed registration process");
 
-            unsafe { serviceStart(); }
-            info!("serviceStart competed");
+            info!("Testing services");
+            so_service_init_ffi(service, 21);
+            so_service_process_ffi(service, 22);
+            info!("Testing services.. Complete");
 
+            info!("Starting Service");
+            uservice_start_ffi(service);
 
-            info!("Completed execution. Service Closing");
+            info!("uservice exited");
+
+            so_service_free_ffi(service);
+
+            so_library_free_ffi(lib);
+
+            info!("service deregistered");
         }
         None => println!("No command provided"),
         _ => unreachable!(),

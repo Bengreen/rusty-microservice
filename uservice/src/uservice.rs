@@ -10,15 +10,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::sleep;
-use tokio::sync::mpsc::{Sender, Receiver};
 
-
-use crate::ffi_service::{init, process};
+use crate::ffi_service::{init, process, SoService};
 
 /// Suggestion from here on how to make a static sender https://users.rust-lang.org/t/global-sync-mpsc-channel-is-possible/14476
 pub static mut KILL_SENDER: Option<Mutex<Sender<()>>> = None;
-
 
 pub struct UServiceConfig {
     pub name: String,
@@ -110,7 +108,6 @@ async fn init_service() -> HandleChannel {
     HandleChannel { handle, channel }
 }
 
-
 async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
     let mut probe = probe.clone();
     let loop_sleep = Duration::from_secs(5);
@@ -140,7 +137,12 @@ async fn simple_loop(probe: &HealthProbe) -> HandleChannel {
     HandleChannel { handle, channel }
 }
 
-pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness: &HealthCheck, mut kill_signal: Receiver<()>) {
+pub async fn start_async(
+    uservice: &UService,
+    liveness: &HealthCheck,
+    readyness: &HealthCheck,
+    mut kill_signal: Receiver<()>,
+) {
     // ToDo: Look at this for clue on how to run on LocalSet : https://docs.rs/tokio/1.9.0/tokio/task/struct.LocalSet.html
     let (channel_http_kill, mut rx_http_kill) = mpsc::channel::<()>(1);
 
@@ -178,7 +180,7 @@ pub async fn start_async(uservice: &UService, liveness: &HealthCheck, readyness:
 }
 
 /// Start the service (including starting the runtime (ie tokio))
-pub fn start(config: &UServiceConfig) {
+pub fn start(config: &UServiceConfig, service: &SoService) {
     info!("uService: Start");
     let liveness = HealthCheck::new("liveness");
     let readyness = HealthCheck::new("readyness");
