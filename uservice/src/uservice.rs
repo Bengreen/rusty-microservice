@@ -34,6 +34,9 @@ pub struct UService {
     // pub rt: tokio::runtime::Runtime,
     channels: Arc<Mutex<Vec<mpsc::Sender<()>>>>,
     handles: Arc<Mutex<Vec<tokio::task::JoinHandle<()>>>>,
+    liveness: HealthCheck,
+    readyness: HealthCheck,
+    kill: Option<Mutex<Sender<()>>>,
 }
 
 impl UService {
@@ -43,11 +46,61 @@ impl UService {
 
             channels: Arc::new(Mutex::new(vec![])),
             handles: Arc::new(Mutex::new(vec![])),
+            liveness: HealthCheck::new("liveness"),
+            readyness: HealthCheck::new("readyness"),
+            kill: None,
         }
     }
-    pub fn start(&self) {
+    pub fn start(&mut self) {
         info!("Starting uservice here");
+
+        let (channel_kill, rx_kill) = mpsc::channel::<()>(1);
+        self.kill = Some(Mutex::new(channel_kill));
+
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("Runtime created in current thread");
+        let _guard = rt.enter();
+
+        rt.block_on(self.start_async(rx_kill) );
+        // rt.block_on(start_async(self, &self.liveness, &self.readyness, rx_kill));
+
+        info!("uService {}: Stopped", self.name);
     }
+    pub async fn start_async(&mut self, mut kill_signal: Receiver<()>) {
+        info!("Starting ASYNC");
+
+        // Init any service loops at this point
+        // Anything created should return a HandleChannel to provide a kill option for the loop AND async handle to allow it to be joined and awaited.
+        let mykill = self.kill.as_ref().unwrap().lock().unwrap().clone();
+        self.add(health_listen("health", 7979, &self.liveness, &self.readyness, mykill).await);
+
+        let channels_register = self.channels.clone();
+        tokio::spawn(async move {
+            let mut sig_terminate =
+                signal(SignalKind::terminate()).expect("Register terminate signal handler");
+            let mut sig_quit = signal(SignalKind::quit()).expect("Register quit signal handler");
+            let mut sig_hup = signal(SignalKind::hangup()).expect("Register hangup signal handler");
+
+            info!("registered signal handlers");
+
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => info!("Received ctrl-c signal"),
+                _ = kill_signal.recv() => info!("Received kill from library"),
+                // _ = rx_http_kill.recv() => info!("Received HTTP kill signal"),
+                _ = sig_terminate.recv() => info!("Received TERM signal"),
+                _ = sig_quit.recv() => info!("Received QUIT signal"),
+                _ = sig_hup.recv() => info!("Received HUP signal"),
+            };
+            info!("Signal handler triggered to start Shutdown");
+
+            UService::shutdown(channels_register).await;
+        });
+
+        self.join().await;
+    }
+
 
     pub fn add(&self, hc: HandleChannel) {
         self.handles.lock().unwrap().push(hc.handle);

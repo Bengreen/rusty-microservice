@@ -214,15 +214,16 @@ pub extern "C" fn uservice_start(ptr: *mut UService) {
 
     info!("Initializing the service with PID: {}", process::id());
 
-    let result = catch_unwind(|| {
-        // start the service
-        uservice.start();
-        // uservice::start(&config, service);
-    });
-    match result {
-        Ok(_) => info!("UService completed successfully"),
-        Err(_) => error!("UService had a panic"),
-    }
+    uservice.start();
+    // let result = catch_unwind(|| {
+    //     // start the service
+    //     uservice.start();
+    //     // uservice::start(&config, service);
+    // });
+    // match result {
+    //     Ok(_) => info!("UService completed successfully"),
+    //     Err(_) => error!("UService had a panic"),
+    // }
 
     info!("UService completed");
 }

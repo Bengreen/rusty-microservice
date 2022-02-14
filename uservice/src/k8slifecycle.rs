@@ -95,7 +95,7 @@ impl Clone for HealthProbe {
 ///
 /// During operation the [HealthProbe] is updated by the service. The service does not need any direct relationship with the [HealthCheck]
 ///
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HealthCheck {
     /// A name for the [HealthCheck]
     name: String,
