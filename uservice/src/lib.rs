@@ -12,6 +12,8 @@ use ffi_log2::{ logger_init, LogParam};
 mod ffi_service;
 mod k8slifecycle;
 mod uservice;
+mod picoservice;
+pub mod simpleservice;
 
 use crate::ffi_service::SoService;
 use crate::uservice::{KILL_SENDER, UService};

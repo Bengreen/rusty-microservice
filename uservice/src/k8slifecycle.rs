@@ -6,6 +6,7 @@ use lazy_static::lazy_static;
 use log::info;
 use prometheus::{HistogramOpts, HistogramVec, IntCounter, IntCounterVec, Opts, Registry};
 use std::collections::HashMap;
+use std::ptr;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -117,6 +118,10 @@ impl HealthCheck {
     /// Add [HealthProbe] to [HealthCheck]
     pub fn add(&self, probe: &HealthProbe) {
         self.probe_list.lock().unwrap().push(probe.clone());
+    }
+
+    pub fn remove(&self, probe: &HealthProbe) {
+        self.probe_list.lock().unwrap().retain(|x| ptr::eq(x, probe));
     }
 
     /// get status which is a json'able object providing detail info on [HealthProbe] and a bool to summarise
