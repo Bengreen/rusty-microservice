@@ -22,11 +22,7 @@ impl SimplePicoLoop {
         }
     }
 }
-impl Drop for SimplePicoLoop {
-    fn drop(&mut self) {
-        println!("Dropping SimplePico! {}", self.name);
-    }
-}
+
 
 #[async_trait]
 impl PicoService for SimplePicoLoop {
@@ -101,4 +97,47 @@ mod tests {
 
         assert!(true);
     }
+}
+
+
+
+/**
+ * Create a simple service that returns a handle and channel
+ *
+ * Use the handle to wait for the async and can confirm it is completed
+ * Use the channel to signal the async to close
+ */
+async fn init_service() -> HandleChannel {
+    let loop_sleep = Duration::from_secs(5);
+
+    let (channel, mut rx) = mpsc::channel(1);
+    let alive = Arc::new(AtomicBool::new(true));
+
+    let handle = tokio::spawn(async move {
+        let alive_recv = alive.clone();
+        tokio::spawn(async move {
+            // Spawn a receive channel to close the loop when signal received
+            let _reci = rx.recv().await;
+            alive_recv.store(false, Ordering::Relaxed);
+            info!("Init. Stopping");
+        });
+
+        let mut my_count: i32 = 0;
+        // let x = init(my_count).expect("Service should have been registed");
+        // info!("Init returned {}", x);
+
+        while alive.load(Ordering::Relaxed) {
+            info!("Init. Looping");
+            // let x = process(my_count).expect("Service should have been registered");
+            // info!("Return from {} was {}", my_count, x);
+            println!("Updating count in loop");
+            my_count += 1;
+
+            sleep(loop_sleep).await;
+        }
+
+        info!("Init. Closed");
+    });
+
+    HandleChannel { handle, channel }
 }

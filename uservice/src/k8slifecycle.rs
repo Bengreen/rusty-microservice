@@ -1,6 +1,8 @@
 //! supporting functions for a microservice
 
+use crate::picoservice::PicoService;
 use crate::uservice::HandleChannel;
+use async_trait::async_trait;
 use atomic::Atomic;
 use lazy_static::lazy_static;
 use log::info;
@@ -143,6 +145,70 @@ impl HealthCheck {
         (happy, detail)
     }
 }
+
+
+struct HealthPico {
+    basepath: String,
+    port: u16,
+    kill_signal: tokio::sync::mpsc::Sender<()>
+}
+
+impl HealthPico {
+    fn new(basepath: &str, port: u16, kill_signal: tokio::sync::mpsc::Sender<()>) -> HealthPico {
+        HealthPico{
+            basepath: basepath.to_string(),
+            port,
+            kill_signal,
+        }
+    }
+}
+
+
+#[async_trait]
+impl PicoService for HealthPico {
+
+    async fn start(&self, alive_check: &HealthCheck,ready_check: &HealthCheck) ->  HandleChannel {
+        info!("Starting health http on {}", self.port);
+
+        register_custom_metrics();
+
+        let ben = self.kill_signal.clone();
+
+
+        // let staticPath = Box::leak(self.basepath.into_boxed_str());
+        let static_path: &'static str = Box::leak(self.basepath.clone().into_boxed_str());
+
+        let api = filters::health(
+            &static_path,
+            alive_check.clone(),
+            ready_check.clone(),
+            ben,
+        );
+
+        let routes = api.with(warp::log("health"));
+
+        info!("Starting health service");
+
+        let (channel, mut rx) = mpsc::channel(1);
+
+        let (_addr, server) =
+            warp::serve(routes).bind_with_graceful_shutdown(([0, 0, 0, 0], self.port), async move {
+                rx.recv().await;
+            });
+
+        let handle = tokio::task::spawn(server);
+
+        HandleChannel { handle, channel }
+    }
+
+
+    fn status(&self) ->  &str {
+        todo!()
+    }
+
+}
+
+
 
 pub async fn health_listen<'a>(
     basepath: &'static str,

@@ -6,15 +6,11 @@ use crate::picoservice::PicoService;
 use futures::future;
 use log::info;
 use std::mem;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::time::sleep;
 
-use crate::ffi_service::{SoService};
 
 /// Suggestion from here on how to make a static sender https://users.rust-lang.org/t/global-sync-mpsc-channel-is-possible/14476
 pub static mut KILL_SENDER: Option<Mutex<Sender<()>>> = None;
@@ -69,11 +65,14 @@ impl UService {
         info!("uService {}: Stopped", self.name);
     }
 
-    pub fn addPicoservice(&mut self, pico: &mut dyn PicoService) {
-        info!("Status = {}", pico.status());
+    pub fn stop(&mut self) {
+        self.kill.as_ref().unwrap().lock().unwrap().blocking_send(()).expect("Send close to async");
 
     }
 
+    pub fn add_picoservice(&mut self, pico: &mut dyn PicoService) {
+        info!("Status = {}", pico.status());
+    }
 
     pub async fn start_async(&mut self, mut kill_signal: Receiver<()>) {
         info!("Starting ASYNC");
@@ -140,50 +139,4 @@ impl UService {
         future::join_all(mem::take(&mut *handles)).await;
         info!("Services completed");
     }
-}
-
-
-
-
-
-
-/**
- * Create a simple service that returns a handle and channel
- *
- * Use the handle to wait for the async and can confirm it is completed
- * Use the channel to signal the async to close
- */
-async fn init_service() -> HandleChannel {
-    let loop_sleep = Duration::from_secs(5);
-
-    let (channel, mut rx) = mpsc::channel(1);
-    let alive = Arc::new(AtomicBool::new(true));
-
-    let handle = tokio::spawn(async move {
-        let alive_recv = alive.clone();
-        tokio::spawn(async move {
-            // Spawn a receive channel to close the loop when signal received
-            let _reci = rx.recv().await;
-            alive_recv.store(false, Ordering::Relaxed);
-            info!("Init. Stopping");
-        });
-
-        let mut my_count: i32 = 0;
-        // let x = init(my_count).expect("Service should have been registed");
-        // info!("Init returned {}", x);
-
-        while alive.load(Ordering::Relaxed) {
-            info!("Init. Looping");
-            // let x = process(my_count).expect("Service should have been registered");
-            // info!("Return from {} was {}", my_count, x);
-            println!("Updating count in loop");
-            my_count += 1;
-
-            sleep(loop_sleep).await;
-        }
-
-        info!("Init. Closed");
-    });
-
-    HandleChannel { handle, channel }
 }

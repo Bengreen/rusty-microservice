@@ -73,6 +73,9 @@ struct UService *uservice_init(const char *name);
  */
 void uservice_free(struct UService *ptr);
 
+/**
+ * Add SO to uservice
+ */
 void uservice_add_so(struct UService *uservice_ptr, struct SoService *soservice_ptr);
 
 /**
@@ -80,22 +83,6 @@ void uservice_add_so(struct UService *uservice_ptr, struct SoService *soservice_
  */
 void uservice_start(struct UService *ptr);
 
-/**
- * Stop the microservice and wait for shutdown to complete before yielding thread
- *
- * Signal to the running service (probably started in a thread) that the service is to be stopped.
- * ```
- * use std::{thread, time};
- * let thandle = std::thread::spawn(move || {
- *     uservice::serviceStop();
- * });
- * thread::sleep(time::Duration::from_secs(3));
- * uservice::serviceStop();
- *
- * thandle.join().expect("UService thread complete");
- * ```
- *
- */
 void uservice_stop(struct UService *ptr);
 
 /**

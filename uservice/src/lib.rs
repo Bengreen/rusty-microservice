@@ -16,7 +16,7 @@ mod picoservice;
 pub mod simpleservice;
 
 use crate::ffi_service::SoService;
-use crate::uservice::{KILL_SENDER, UService};
+use crate::uservice::{UService};
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -185,6 +185,8 @@ pub extern "C" fn uservice_free(ptr: *mut UService) {
     }
 }
 
+/** Add SO to uservice
+ */
 #[no_mangle]
 pub extern "C" fn uservice_add_so(uservice_ptr: *mut UService, soservice_ptr: *mut SoService, ) {
     let uservice = unsafe {
@@ -231,32 +233,28 @@ pub extern "C" fn uservice_start(ptr: *mut UService) {
 }
 
 #[no_mangle]
-/// Stop the microservice and wait for shutdown to complete before yielding thread
-///
-/// Signal to the running service (probably started in a thread) that the service is to be stopped.
-/// ```
-/// use std::{thread, time};
-/// let thandle = std::thread::spawn(move || {
-///     uservice::serviceStop();
-/// });
-/// thread::sleep(time::Duration::from_secs(3));
-/// uservice::serviceStop();
-///
-/// thandle.join().expect("UService thread complete");
-/// ```
-///
 pub extern "C" fn uservice_stop(ptr: *mut UService) {
-    info!("Closing uservice");
-    let kill = unsafe { KILL_SENDER.as_ref().unwrap().lock().unwrap().clone() };
-    kill.blocking_send(()).expect("Send completes to async");
+    let uservice = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    info!("Uservice Stop called");
 
-    println!("Stop request completed. Waiting for service halt.");
+    info!("Stopping the service with PID: {}", process::id());
+
+    uservice.stop();
+    // let result = catch_unwind(|| {
+    //     // start the service
+    //     uservice.start();
+    //     // uservice::start(&config, service);
+    // });
+    // match result {
+    //     Ok(_) => info!("UService completed successfully"),
+    //     Err(_) => error!("UService had a panic"),
+    // }
+
+    info!("UService stop called");
 }
-
-
-
-
-
 
 
 
