@@ -153,7 +153,7 @@ pub extern "C" fn so_service_process(ptr: *mut SoService, param: i32) -> i32 {
  *
  */
 #[no_mangle]
-pub extern "C" fn uservice_init(name: *const libc::c_char) -> *mut UService {
+pub extern "C" fn uservice_init<'a>(name: *const libc::c_char) -> *mut UService<'a> {
     let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
         Ok(s) => s,
         Err(e) => {
@@ -188,16 +188,51 @@ pub extern "C" fn uservice_free(ptr: *mut UService) {
 /** Add SO to uservice
  */
 #[no_mangle]
-pub extern "C" fn uservice_add_so(uservice_ptr: *mut UService, soservice_ptr: *mut SoService, ) {
+pub extern "C" fn uservice_add_so<'a>(uservice_ptr: *mut UService<'a>, name: *const libc::c_char, soservice_ptr: *mut SoService<'a>, ) {
     let uservice = unsafe {
         assert!(!uservice_ptr.is_null());
+
         &mut *uservice_ptr
     };
     let soservice = unsafe {
         assert!(!soservice_ptr.is_null());
-        &mut *soservice_ptr
+        Box::from_raw(soservice_ptr)
+        //&mut *soservice_ptr
     };
-    info!("Adding {:?} to {:?}", soservice, uservice);
+    let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            panic!(
+                "FFI string conversion failed for registering the so library with error: {}",
+                e
+            );
+        }
+    };
+    info!("Adding {:?} ({}) to {:?}", soservice, name_str, uservice);
+
+    uservice.add_soservice(name_str, soservice);
+}
+
+#[no_mangle]
+pub extern "C" fn uservice_remove_so(uservice_ptr: *mut UService, name: *const libc::c_char) -> *mut SoService {
+    let uservice = unsafe {
+        assert!(!uservice_ptr.is_null());
+
+        &mut *uservice_ptr
+    };
+    let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            panic!(
+                "FFI string conversion failed for registering the so library with error: {}",
+                e
+            );
+        }
+    };
+
+    let soservice = uservice.remove_soservice(name_str);
+
+    Box::into_raw(soservice)
 }
 
 /** Start the microservice and keep exe control until it is complete
@@ -284,4 +319,46 @@ pub extern "C" fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_
     info!("The probe is called: {}", name_str);
 
     name_str.len() as i32 + margin_ms
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fmt::Debug, collections::HashMap};
+
+    #[test]
+    fn lifetime_validation() {
+
+        #[derive(Debug)]
+        struct TestMe {
+            pub name: String
+        }
+
+        impl TestMe {
+            pub fn new(name: &str) -> TestMe {
+                println!("I am creating: {}", name);
+                TestMe{
+                    name: name.to_string(),
+                }
+            }
+        }
+
+
+        impl Drop for TestMe {
+            fn drop(&mut self) {
+                println!("Dropping TestMe! {:?}", self);
+            }
+        }
+
+        let ben = TestMe::new("hello");
+        println!("ben obj: {:?}", ben);
+
+        let roy = ben;
+        println!("Roy obj: {:?}", roy);
+
+        let mut dave = HashMap::new();
+
+        dave.insert("roy", roy);
+
+        println!("Dave Obj: {:?}", dave);
+    }
 }

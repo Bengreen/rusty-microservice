@@ -1,15 +1,18 @@
 //! Create a micro service
 
+use crate::ffi_service::SoService;
 use crate::k8slifecycle::health_listen;
 use crate::k8slifecycle::{HealthCheck, HealthProbe};
 use crate::picoservice::PicoService;
 use futures::future;
 use log::info;
+use std::collections::hash_map;
 use std::mem;
 use std::sync::{Arc, Mutex};
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
+use std::collections::HashMap;
 
 
 /// Suggestion from here on how to make a static sender https://users.rust-lang.org/t/global-sync-mpsc-channel-is-possible/14476
@@ -26,23 +29,25 @@ pub struct HandleChannel {
 }
 
 #[derive(Debug)]
-pub struct UService {
+pub struct UService<'a> {
     pub name: String,
     // pub rt: tokio::runtime::Runtime,
     channels: Arc<Mutex<Vec<mpsc::Sender<()>>>>,
     handles: Arc<Mutex<Vec<tokio::task::JoinHandle<()>>>>,
+    so_services: Arc<Mutex<HashMap<String, Box<SoService<'a>>>>>,
     liveness: HealthCheck,
     readyness: HealthCheck,
     kill: Option<Mutex<Sender<()>>>,
 }
 
-impl UService {
+impl<'a> UService<'a> {
     pub fn new(name: &str) -> UService {
         UService {
             name: name.to_string(),
 
             channels: Arc::new(Mutex::new(vec![])),
             handles: Arc::new(Mutex::new(vec![])),
+            so_services: Arc::new(Mutex::new(HashMap::new())),
             liveness: HealthCheck::new("liveness"),
             readyness: HealthCheck::new("readyness"),
             kill: None,
@@ -70,8 +75,19 @@ impl UService {
 
     }
 
+    pub fn add_soservice<'b: 'a>(&'b mut self, name: & str, soService: Box<SoService<'a>>) {
+
+        self.so_services.lock().unwrap().insert(name.to_string(), soService);
+        // todo!("add_soservice")
+    }
+
+    pub fn remove_soservice(&mut self, name: &str) -> Box<SoService> {
+        self.so_services.lock().unwrap().remove(name).expect("remove soservice from map")
+    }
+
     pub fn add_picoservice(&mut self, pico: &mut dyn PicoService) {
         info!("Status = {}", pico.status());
+        todo!("pico service add")
     }
 
     pub async fn start_async(&mut self, mut kill_signal: Receiver<()>) {

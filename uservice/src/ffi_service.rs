@@ -9,6 +9,7 @@ pub struct SoService<'a> {
     pub(crate) process: Symbol<'a, extern "C" fn(i32) -> i32>,
 }
 
+
 /** Struct and methods to manage the Registered SO
  *
  */

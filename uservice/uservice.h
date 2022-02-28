@@ -76,7 +76,11 @@ void uservice_free(struct UService *ptr);
 /**
  * Add SO to uservice
  */
-void uservice_add_so(struct UService *uservice_ptr, struct SoService *soservice_ptr);
+void uservice_add_so(struct UService *uservice_ptr,
+                     const char *name,
+                     struct SoService *soservice_ptr);
+
+struct SoService *uservice_remove_so(struct UService *uservice_ptr, const char *name);
 
 /**
  * Start the microservice and keep exe control until it is complete  *  * retain exec until the service exits  *  * ```  * uservice:uservice_start()  * ```

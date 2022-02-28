@@ -8,10 +8,11 @@ use env_logger::Env;
 use ffi_log2::log_param;
 use log::info;
 
+use uservice::uservice_remove_so;
 use uservice_run::{
     so_library_free_ffi, so_library_register_ffi, so_service_free_ffi, so_service_init_ffi,
     so_service_logger_init_ffi, so_service_process_ffi, so_service_register_ffi,
-    uservice_logger_init_ffi, uservice_start_ffi, uservice_init_ffi, uservice_add_so_ffi,
+    uservice_logger_init_ffi, uservice_start_ffi, uservice_init_ffi, uservice_add_so_ffi, uservice_remove_so_ffi,
 };
 
 pub fn main() {
@@ -96,7 +97,7 @@ pub fn main() {
 
             info!("Completed registration process");
 
-            info!("Testing services");
+            info!("Testing specific init and process API calls for service");
             so_service_init_ffi(soservice, 21);
             so_service_process_ffi(soservice, 22);
 
@@ -105,8 +106,10 @@ pub fn main() {
 
             info!("Create UService");
             let uservice = uservice_init_ffi("hello").expect("Initialise uservice");
-            uservice_add_so_ffi(uservice, soservice);
+            uservice_add_so_ffi(uservice, "hello", soservice).ok();
 
+
+            uservice_remove_so_ffi(uservice, "hello").ok();
 
             info!("Starting Service");
             uservice_start_ffi(uservice);

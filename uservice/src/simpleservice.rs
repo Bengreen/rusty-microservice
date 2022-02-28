@@ -40,25 +40,25 @@ impl PicoService for SimplePicoLoop {
         let my_sleep = self.loop_sleep; // Copy so we dont have to Send the self into the future
 
         let (channel, mut rx) = mpsc::channel(1);
-        let alive = Arc::new(AtomicBool::new(true));
+        let running = Arc::new(AtomicBool::new(true));
 
         let handle = tokio::spawn(async move {
-            let alive_recv = alive.clone();
-            tokio::spawn(async move {
+            let alive_recv = running.clone();
+            let signal = tokio::spawn(async move {
                 // Spawn a receive channel to close the loop when signal received
                 let _reci = rx.recv().await;
                 alive_recv.store(false, Ordering::Relaxed);
                 info!("Setting Loop close stop");
             });
 
-            while alive.load(Ordering::Relaxed) {
+            while running.load(Ordering::Relaxed) {
                 info!("in loop");
 
                 alive_probe.tick();
                 sleep(my_sleep).await;
             }
             alive_check.remove(&alive_probe);
-
+            signal.await.expect("Signal future complted");   // Do we need this
             info!("Simple loop closed");
         });
 

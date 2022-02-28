@@ -41,7 +41,8 @@ extern "C" {
 
     fn uservice_init(name: *const libc::c_char) -> *mut UService;
     fn uservice_free(uservice: *mut UService);
-    fn uservice_add_so(uservice: *mut UService, soservice: *mut SoService);
+    fn uservice_add_so(uservice: *mut UService, name: *const libc::c_char, soservice: *mut SoService);
+    fn uservice_remove_so(uservice: *mut UService, name: *const libc::c_char) -> *mut SoService;
     fn uservice_start(service: *mut UService);
 
 }
@@ -155,10 +156,15 @@ pub fn uservice_free_ffi(uservice: *mut UService) {
 /** Add soservice to uservice
  *
  */
-pub fn uservice_add_so_ffi(uservice: *mut UService, soservice: *mut SoService) {
+pub fn uservice_add_so_ffi<S: Into<String>>(
+    uservice: *mut UService,
+    name: S,
+    soservice: *mut SoService) -> Result<(), std::ffi::NulError> {
+    let c_name = std::ffi::CString::new(name.into())?;
     unsafe {
-        uservice_add_so(uservice, soservice);
+        uservice_add_so(uservice, c_name.as_ptr(), soservice);
     }
+    Ok(())
 }
 
 /** Start the service passing in the SO service
@@ -169,3 +175,13 @@ pub fn uservice_start_ffi(service: *mut UService) {
         uservice_start(service);
     }
 }
+
+pub fn uservice_remove_so_ffi<S: Into<String>>(
+    uservice: *mut UService,
+    name: S) ->  Result<*mut SoService, std::ffi::NulError> {
+        let c_name = std::ffi::CString::new(name.into())?;
+
+        Ok(unsafe {
+            uservice_remove_so(uservice, c_name.as_ptr())
+        })
+    }
