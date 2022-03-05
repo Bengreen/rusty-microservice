@@ -38,10 +38,13 @@ extern "C" {
     fn so_service_init(service: *mut SoService, param: i32) -> i32;
     fn so_service_process(service: *mut SoService, param: i32) -> i32;
 
-
     fn uservice_init(name: *const libc::c_char) -> *mut UService;
     fn uservice_free(uservice: *mut UService);
-    fn uservice_add_so(uservice: *mut UService, name: *const libc::c_char, soservice: *mut SoService);
+    fn uservice_add_so(
+        uservice: *mut UService,
+        name: *const libc::c_char,
+        soservice: *mut SoService,
+    );
     fn uservice_remove_so(uservice: *mut UService, name: *const libc::c_char) -> *mut SoService;
     fn uservice_start(service: *mut UService);
 
@@ -128,10 +131,7 @@ pub fn so_service_process_ffi(service: *mut SoService, param: i32) -> i32 {
     unsafe { so_service_process(service, param) }
 }
 
-
-pub fn uservice_init_ffi<S: Into<String>>(
-    name: S,
-) -> Result<*mut UService, std::ffi::NulError>
+pub fn uservice_init_ffi<S: Into<String>>(name: S) -> Result<*mut UService, std::ffi::NulError>
 where
     S: Display,
 {
@@ -146,7 +146,6 @@ where
     // The lifetime of c_err continues until here
 }
 
-
 pub fn uservice_free_ffi(uservice: *mut UService) {
     unsafe {
         uservice_free(uservice);
@@ -159,7 +158,8 @@ pub fn uservice_free_ffi(uservice: *mut UService) {
 pub fn uservice_add_so_ffi<S: Into<String>>(
     uservice: *mut UService,
     name: S,
-    soservice: *mut SoService) -> Result<(), std::ffi::NulError> {
+    soservice: *mut SoService,
+) -> Result<(), std::ffi::NulError> {
     let c_name = std::ffi::CString::new(name.into())?;
     unsafe {
         uservice_add_so(uservice, c_name.as_ptr(), soservice);
@@ -178,10 +178,9 @@ pub fn uservice_start_ffi(service: *mut UService) {
 
 pub fn uservice_remove_so_ffi<S: Into<String>>(
     uservice: *mut UService,
-    name: S) ->  Result<*mut SoService, std::ffi::NulError> {
-        let c_name = std::ffi::CString::new(name.into())?;
+    name: S,
+) -> Result<*mut SoService, std::ffi::NulError> {
+    let c_name = std::ffi::CString::new(name.into())?;
 
-        Ok(unsafe {
-            uservice_remove_so(uservice, c_name.as_ptr())
-        })
-    }
+    Ok(unsafe { uservice_remove_so(uservice, c_name.as_ptr()) })
+}

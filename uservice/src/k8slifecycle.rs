@@ -123,7 +123,10 @@ impl HealthCheck {
     }
 
     pub fn remove(&self, probe: &HealthProbe) {
-        self.probe_list.lock().unwrap().retain(|x| ptr::eq(x, probe));
+        self.probe_list
+            .lock()
+            .unwrap()
+            .retain(|x| ptr::eq(x, probe));
     }
 
     /// get status which is a json'able object providing detail info on [HealthProbe] and a bool to summarise
@@ -146,16 +149,15 @@ impl HealthCheck {
     }
 }
 
-
 struct HealthPico {
     basepath: String,
     port: u16,
-    kill_sender: tokio::sync::mpsc::Sender<()>
+    kill_sender: tokio::sync::mpsc::Sender<()>,
 }
 
 impl HealthPico {
     fn new(basepath: &str, port: u16, kill_sender: tokio::sync::mpsc::Sender<()>) -> HealthPico {
-        HealthPico{
+        HealthPico {
             basepath: basepath.to_string(),
             port,
             kill_sender,
@@ -163,21 +165,23 @@ impl HealthPico {
     }
 }
 
-
 #[async_trait]
 impl PicoService for HealthPico {
-
-    async fn start(&self, alive_check: &HealthCheck,ready_check: &HealthCheck, mut kill: mpsc::Receiver<()>) ->  tokio::task::JoinHandle<()> {
+    async fn start(
+        &self,
+        alive_check: &HealthCheck,
+        ready_check: &HealthCheck,
+        mut kill: mpsc::Receiver<()>,
+    ) -> tokio::task::JoinHandle<()> {
         info!("Starting health http on {}", self.port);
 
         register_custom_metrics();
-
 
         // let staticPath = Box::leak(self.basepath.into_boxed_str());
         let static_path: &'static str = Box::leak(self.basepath.clone().into_boxed_str());
 
         let api = filters::health(
-            &static_path,
+            static_path,
             alive_check.clone(),
             ready_check.clone(),
             self.kill_sender.clone(),
@@ -187,18 +191,19 @@ impl PicoService for HealthPico {
 
         info!("Starting health service");
 
-        let (_addr, server) =
-            warp::serve(routes).bind_with_graceful_shutdown(([0, 0, 0, 0], self.port), async move {
+        let (_addr, server) = warp::serve(routes).bind_with_graceful_shutdown(
+            ([0, 0, 0, 0], self.port),
+            async move {
                 kill.recv().await;
-            });
+            },
+        );
 
         tokio::task::spawn(server)
     }
 
-    fn status(&self) ->  &str {
+    fn status(&self) -> &str {
         todo!()
     }
-
 }
 
 pub async fn health_listen<'a>(

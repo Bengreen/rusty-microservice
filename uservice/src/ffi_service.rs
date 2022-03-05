@@ -1,14 +1,12 @@
 use ffi_log2::LogParam;
 use libloading::{Library, Symbol};
 
-
 #[derive(Debug)]
 pub struct SoService<'a> {
     pub(crate) init_logger: Symbol<'a, extern "C" fn(param: LogParam)>,
     pub(crate) init: Symbol<'a, extern "C" fn(i32) -> i32>,
     pub(crate) process: Symbol<'a, extern "C" fn(i32) -> i32>,
 }
-
 
 /** Struct and methods to manage the Registered SO
  *

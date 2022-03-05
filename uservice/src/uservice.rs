@@ -2,18 +2,17 @@
 
 use crate::ffi_service::SoService;
 use crate::k8slifecycle::health_listen;
-use crate::k8slifecycle::{HealthCheck, HealthProbe};
+use crate::k8slifecycle::HealthCheck;
 use crate::picoservice::PicoService;
 use futures::future;
 use log::info;
-use std::collections::hash_map;
+
+use std::collections::HashMap;
 use std::mem;
 use std::sync::{Arc, Mutex};
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use std::collections::HashMap;
-
 
 pub struct UServiceConfig {
     pub name: String,
@@ -56,24 +55,35 @@ impl<'a> UService<'a> {
             .expect("Runtime created in current thread");
         let _guard = rt.enter();
 
-        rt.block_on(self.start_async(rx_kill) );
+        rt.block_on(self.start_async(rx_kill));
 
         info!("uService {}: Stopped", self.name);
     }
 
     pub fn stop(&mut self) {
-        self.kill.as_ref().unwrap().lock().unwrap().blocking_send(()).expect("Send close to async");
-
+        self.kill
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .blocking_send(())
+            .expect("Send close to async");
     }
 
-    pub fn add_soservice<'b: 'a>(&'b mut self, name: & str, soService: Box<SoService<'a>>) {
-
-        self.so_services.lock().unwrap().insert(name.to_string(), soService);
+    pub fn add_soservice<'b: 'a>(&'b mut self, name: &str, so_service: Box<SoService<'a>>) {
+        self.so_services
+            .lock()
+            .unwrap()
+            .insert(name.to_string(), so_service);
         // todo!("add_soservice")
     }
 
     pub fn remove_soservice(&mut self, name: &str) -> Box<SoService> {
-        self.so_services.lock().unwrap().remove(name).expect("remove soservice from map")
+        self.so_services
+            .lock()
+            .unwrap()
+            .remove(name)
+            .expect("remove soservice from map")
     }
 
     pub fn add_picoservice(&mut self, pico: &mut dyn PicoService) {
@@ -94,9 +104,20 @@ impl<'a> UService<'a> {
 
         let kill_send = self.kill.as_ref().unwrap().lock().unwrap().clone();
 
-        let (channel, mut kill_recv) = mpsc::channel(1);
+        let (channel, kill_recv) = mpsc::channel(1);
 
-        self.add(channel , health_listen("health", 7979, &self.liveness, &self.readyness, kill_recv, kill_send).await);
+        self.add(
+            channel,
+            health_listen(
+                "health",
+                7979,
+                &self.liveness,
+                &self.readyness,
+                kill_recv,
+                kill_send,
+            )
+            .await,
+        );
 
         let channels_register = self.channels.clone();
         tokio::spawn(async move {
@@ -123,16 +144,15 @@ impl<'a> UService<'a> {
         self.join().await;
     }
 
-
-    pub fn add(&self, channel: Sender<()> , handle: tokio::task::JoinHandle<()>) {
+    pub fn add(&self, channel: Sender<()>, handle: tokio::task::JoinHandle<()>) {
         self.handles.lock().unwrap().push(handle);
         self.channels.lock().unwrap().push(channel);
     }
 
     pub async fn shutdown(channels: Arc<Mutex<Vec<mpsc::Sender<()>>>>) {
-        let ben = channels.lock().unwrap().clone();
+        let channels = channels.lock().unwrap().clone();
 
-        for channel in ben.iter() {
+        for channel in channels.iter() {
             let channel_rx = channel.send(()).await;
             match channel_rx {
                 Ok(_v) => info!("Shutdown signal sent"),

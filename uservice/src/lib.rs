@@ -1,21 +1,21 @@
 use core::panic;
-use std::panic::catch_unwind;
 use libloading::Library;
-use log::{info, error};
+use log::info;
+use std::panic::catch_unwind;
 
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 use std::process;
 
-use ffi_log2::{ logger_init, LogParam};
+use ffi_log2::{logger_init, LogParam};
 
 mod ffi_service;
 mod k8slifecycle;
-mod uservice;
 mod picoservice;
+mod uservice;
 
 use crate::ffi_service::SoService;
-use crate::uservice::{UService};
+use crate::uservice::UService;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -55,11 +55,9 @@ pub extern "C" fn so_library_register<'a>(name: *const libc::c_char) -> *mut Lib
     };
     info!("Registering library: {}", name_str);
 
-    let library = Box::into_raw(Box::new(
+    Box::into_raw(Box::new(
         unsafe { Library::new(libloading::library_filename(name_str)) }.unwrap(),
-    ));
-
-    library
+    ))
 }
 
 /**
@@ -145,9 +143,6 @@ pub extern "C" fn so_service_process(ptr: *mut SoService, param: i32) -> i32 {
     (&service.process)(param)
 }
 
-
-
-
 /** Initialise the UService
  *
  */
@@ -187,7 +182,11 @@ pub extern "C" fn uservice_free(ptr: *mut UService) {
 /** Add SO to uservice
  */
 #[no_mangle]
-pub extern "C" fn uservice_add_so<'a>(uservice_ptr: *mut UService<'a>, name: *const libc::c_char, soservice_ptr: *mut SoService<'a>, ) {
+pub extern "C" fn uservice_add_so<'a>(
+    uservice_ptr: *mut UService<'a>,
+    name: *const libc::c_char,
+    soservice_ptr: *mut SoService<'a>,
+) {
     let uservice = unsafe {
         assert!(!uservice_ptr.is_null());
 
@@ -213,7 +212,10 @@ pub extern "C" fn uservice_add_so<'a>(uservice_ptr: *mut UService<'a>, name: *co
 }
 
 #[no_mangle]
-pub extern "C" fn uservice_remove_so(uservice_ptr: *mut UService, name: *const libc::c_char) -> *mut SoService {
+pub extern "C" fn uservice_remove_so(
+    uservice_ptr: *mut UService,
+    name: *const libc::c_char,
+) -> *mut SoService {
     let uservice = unsafe {
         assert!(!uservice_ptr.is_null());
 
@@ -290,9 +292,6 @@ pub extern "C" fn uservice_stop(ptr: *mut UService) {
     info!("UService stop called");
 }
 
-
-
-
 #[no_mangle]
 /// Create a health probe
 ///
@@ -322,25 +321,23 @@ pub extern "C" fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_
 
 #[cfg(test)]
 mod tests {
-    use std::{fmt::Debug, collections::HashMap};
+    use std::{collections::HashMap, fmt::Debug};
 
     #[test]
     fn lifetime_validation() {
-
         #[derive(Debug)]
         struct TestMe {
-            pub name: String
+            pub name: String,
         }
 
         impl TestMe {
             pub fn new(name: &str) -> TestMe {
                 println!("I am creating: {}", name);
-                TestMe{
+                TestMe {
                     name: name.to_string(),
                 }
             }
         }
-
 
         impl Drop for TestMe {
             fn drop(&mut self) {
