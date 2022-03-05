@@ -13,7 +13,6 @@ mod ffi_service;
 mod k8slifecycle;
 mod uservice;
 mod picoservice;
-pub mod simpleservice;
 
 use crate::ffi_service::SoService;
 use crate::uservice::{UService};

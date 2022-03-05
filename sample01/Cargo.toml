@@ -16,6 +16,7 @@ futures = "0.3.17"
 log = {version = "0.4.14", features = ["release_max_level_warn"]}
 rand = "0.8.4"
 ffi-log2 = { path = "../ffi-log2" }
+async-trait = {version = "~0.1.52" }
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["async_tokio"] }

@@ -19,6 +19,8 @@ Create a small runtime that implements the following.
   * [x] Correctly implement logging so that exec provides the logging implementation and the library references it: https://github.com/rust-lang/log/issues/421
   * [ ] Benchmark difference between function called directly and via ffi callback
   * [x] Docker build for cargo: https://github.com/LukeMathWalker/cargo-chef
+  * [ ] Create a service sample01 as a PicoService within the sample01 service
+  * [ ] Load the sample01 into the service via
 
 
 # Details Docs/Planning
@@ -37,6 +39,7 @@ Cli command to do:
   * FFI error returns https://michael-f-bryan.github.io/rust-ffi-guide/errors/return_types.html
   * Passing strings through to FFI https://rust-unofficial.github.io/patterns/idioms/ffi/passing-strings.html
   * C API design in Rust https://siliconislandblog.wordpress.com/2019/05/03/lessons-when-creating-a-c-api-from-rust/
+  * static sender https://users.rust-lang.org/t/global-sync-mpsc-channel-is-possible/14476
   * Multi arch Docker build: https://www.docker.com/blog/multi-arch-images/
   * Singletons... if you must use them http://oostens.me/posts/singletons-in-rust/
 

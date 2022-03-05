@@ -15,17 +15,8 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use std::collections::HashMap;
 
 
-/// Suggestion from here on how to make a static sender https://users.rust-lang.org/t/global-sync-mpsc-channel-is-possible/14476
-pub static mut KILL_SENDER: Option<Mutex<Sender<()>>> = None;
-
 pub struct UServiceConfig {
     pub name: String,
-}
-
-#[derive(Debug)]
-pub struct HandleChannel {
-    pub handle: tokio::task::JoinHandle<()>,
-    pub channel: mpsc::Sender<()>,
 }
 
 #[derive(Debug)]
@@ -100,8 +91,12 @@ impl<'a> UService<'a> {
 
         // Init any service loops at this point
         // Anything created should return a HandleChannel to provide a kill option for the loop AND async handle to allow it to be joined and awaited.
-        let mykill = self.kill.as_ref().unwrap().lock().unwrap().clone();
-        self.add(health_listen("health", 7979, &self.liveness, &self.readyness, mykill).await);
+
+        let kill_send = self.kill.as_ref().unwrap().lock().unwrap().clone();
+
+        let (channel, mut kill_recv) = mpsc::channel(1);
+
+        self.add(channel , health_listen("health", 7979, &self.liveness, &self.readyness, kill_recv, kill_send).await);
 
         let channels_register = self.channels.clone();
         tokio::spawn(async move {
@@ -129,9 +124,9 @@ impl<'a> UService<'a> {
     }
 
 
-    pub fn add(&self, hc: HandleChannel) {
-        self.handles.lock().unwrap().push(hc.handle);
-        self.channels.lock().unwrap().push(hc.channel);
+    pub fn add(&self, channel: Sender<()> , handle: tokio::task::JoinHandle<()>) {
+        self.handles.lock().unwrap().push(handle);
+        self.channels.lock().unwrap().push(channel);
     }
 
     pub async fn shutdown(channels: Arc<Mutex<Vec<mpsc::Sender<()>>>>) {

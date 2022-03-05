@@ -3,6 +3,8 @@ use log::info;
 use ffi_log2::{logger_init, LogParam};
 
 use std::process;
+// mod simpleservice;
+
 
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
