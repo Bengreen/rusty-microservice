@@ -102,6 +102,14 @@ impl<'a> UService<'a> {
         // Init any service loops at this point
         // Anything created should return a HandleChannel to provide a kill option for the loop AND async handle to allow it to be joined and awaited.
 
+        self.so_services.lock().unwrap().iter().for_each(
+            |(name, service)| {
+            info!("Dispatching SoService: {}", name);
+            (&service.init)(12);
+            info!("Called init for {}", name);
+            }
+        );
+
         let kill_send = self.kill.as_ref().unwrap().lock().unwrap().clone();
 
         let (channel, kill_recv) = mpsc::channel(1);

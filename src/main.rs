@@ -107,12 +107,12 @@ pub fn main() {
             let uservice = uservice_init_ffi("hello").expect("Initialise uservice");
             uservice_add_so_ffi(uservice, "hello", soservice).ok();
 
-            uservice_remove_so_ffi(uservice, "hello").ok();
-
             info!("Starting Service");
             uservice_start_ffi(uservice);
-
             info!("uservice exited");
+
+            uservice_remove_so_ffi(uservice, "hello").ok();
+
 
             so_service_free_ffi(soservice);
 
