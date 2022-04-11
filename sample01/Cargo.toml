@@ -13,7 +13,7 @@ atomic = "0.5"
 prometheus = { version = "0.12.0", features = ["process"] }
 lazy_static = "1.4"
 futures = "0.3.17"
-log = {version = "0.4.14", features = ["release_max_level_warn"]}
+log = {version = "~0.4"}
 rand = "0.8.4"
 ffi-log2 = { path = "../ffi-log2" }
 async-trait = {version = "~0.1.52" }

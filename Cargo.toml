@@ -7,8 +7,8 @@ authors = ["Ben Greene <BenJGreene@gmail.com>"]
 [workspace]
 
 [dependencies]
-env_logger = "0.9.0"
-log = {version = "0.4.16", features = ["release_max_level_info"]}
+env_logger = "~0.9"
+log = {version = "~0.4", features = ["release_max_level_info"]}
 clap = "~3.0"
 figment = { version = "~0.10", features = ["toml", "env"] }
 uservice = { path = "uservice" }
