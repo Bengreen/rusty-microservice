@@ -17,7 +17,6 @@ use uservice_run::{
 
 pub fn main() {
     //! Initialise the shared library
-    println!("Starting but not logging yet");
     let log_level = Env::default().default_filter_or("info");
     env_logger::Builder::from_env(log_level).init();
 
