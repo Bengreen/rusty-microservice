@@ -1,6 +1,8 @@
 CARGO:=cargo
 
-IMAGE_NAME=rusty-microservice
+IMAGE_NAME=rusty-microservice/rusty
+REGISTRY=dockerreg.k8s:5000
+
 
 build:
 	cargo build
@@ -18,17 +20,22 @@ test:
 run:
 	cargo run -- listen
 
-docker:
+docker-build:
 	docker build -t $(IMAGE_NAME) .
 
-docker-shell: docker
-	docker run -it $(IMAGE_NAME)
+docker-publish: docker-build
+	docker tag ${IMAGE_NAME} ${REGISTRY}/${IMAGE_NAME}
+	docker push ${REGISTRY}/${IMAGE_NAME}
+
+
+docker-shell: docker-build
+	docker run -it --entrypoint /bin/bash $(IMAGE_NAME)
 
 docker-tag: docker
 	docker tag rust_hello:latest rust_hello:1.0.0
 
 rollout:
-	kubectl rollout restart deployment hello
+	kubectl rollout restart deployment rusty
 
 bloat:
 	cargo bloat --release -n 10
