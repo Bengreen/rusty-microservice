@@ -7,15 +7,20 @@ REGISTRY=dockerreg.k8s:5000
 build:
 	cargo build
 
+build-watch:
+	@cargo watch -x 'build'
+
 release:
 	cargo build --release
-
 
 status:
 	@cargo --version
 
 test:
 	cargo test -- --nocapture
+
+test-watch:
+	cargo watch -x 'test -- --nocapture'
 
 run:
 	cargo run -- listen

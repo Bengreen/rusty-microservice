@@ -1,6 +1,6 @@
 #![warn(missing_docs)]
 
-//! myhhfhf is a minimal microservice built as an exec (caller) and a sharedobject. This allows the library to have exposed APIs that can be called from other languages
+//! A minimal microservice built as an exec (caller) and a sharedobject. This allows the library to have exposed APIs that can be called from other languages
 
 use clap::{App, Arg};
 use env_logger::Env;
@@ -9,11 +9,11 @@ use ffi_log2::log_param;
 use log::info;
 
 use uservice_run::{
-    so_library_free_ffi, so_library_register_ffi, so_service_free_ffi, so_service_init_ffi,
-    so_service_logger_init_ffi, so_service_process_ffi, so_service_register_ffi,
-    uservice_add_so_ffi, uservice_init_ffi, uservice_logger_init_ffi, uservice_remove_so_ffi,
-    uservice_start_ffi,
+    uservice_init_ffi, uservice_logger_init_ffi,
+    uservice_start_ffi, pservice_register_ffi, pservices_logger_init_ffi, pservices_init_ffi, pservice_free_ffi, uservice_free_ffi,
 };
+
+
 
 pub fn main() {
     //! Initialise the shared library
@@ -61,6 +61,9 @@ pub fn main() {
         println!("Value for config: {}", c);
         panic!("Config loading not implemented yet");
     }
+
+    let my_config="";
+
     // You can see how many times a particular flag or argument occurred
     // Note, only flags can have multiple occurrences
     let verbose = matches.occurrences_of("v");
@@ -87,35 +90,29 @@ pub fn main() {
 
             uservice_logger_init_ffi(log_param());
 
-            let lib = so_library_register_ffi(library).expect("So library loaded");
-            let soservice = so_service_register_ffi(lib).expect("Load functions from so");
+            let uservice = uservice_init_ffi("pear").expect("UService did not initialise");
+            info!("Initialised UService");
+
+            pservice_register_ffi(uservice, "apple", library).expect("Load pservice library");
             info!("Service loaded");
 
             info!("initialising so logging");
-            so_service_logger_init_ffi(soservice, log_param());
+            pservices_logger_init_ffi(uservice, log_param());
 
-            info!("Completed registration process");
+            info!("Registered logging for pservices");
 
-            info!("Testing specific init and process API calls for service");
-            so_service_init_ffi(soservice, 21);
-            so_service_process_ffi(soservice, 22);
+            pservices_init_ffi(uservice, my_config).expect("init completes");
+            info!("PServices init completed");
 
-            info!("Testing services.. Complete");
+            uservice_start_ffi(uservice).expect("uservice init completes");
+            info!("uservice completed and exited");
 
-            info!("Create UService");
-            let uservice = uservice_init_ffi("hello").expect("Initialise uservice");
-            uservice_add_so_ffi(uservice, "hello", soservice).ok();
+            // uservice_stop_ffi(uservice).expect("")  // NOT needed as already stopped
+            pservice_free_ffi(uservice, "apple").expect("pservice freed");
 
-            info!("Starting Service");
-            uservice_start_ffi(uservice);
-            info!("uservice exited");
+            uservice_free_ffi(uservice).expect("uservice free");
 
-            uservice_remove_so_ffi(uservice, "hello").ok();
-
-
-            so_service_free_ffi(soservice);
-
-            so_library_free_ffi(lib);
+            // so_library_free_ffi(lib);
 
             info!("service deregistered");
         }

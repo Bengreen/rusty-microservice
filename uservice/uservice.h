@@ -15,11 +15,6 @@ typedef struct SoService SoService;
 typedef struct UService UService;
 
 /**
- * Initialise the FFI based logging for this crate
- */
-void uservice_logger_init(LogParam param);
-
-/**
  * Register a shared library for by the name of the library
  *
  * # Safety
@@ -37,6 +32,48 @@ Library *so_library_register(const char *name);
  *  * Free the library
  */
 void so_library_free(Library *ptr);
+
+/**
+ * Initialise the FFI based logging for this crate
+ */
+void uservice_logger_init(LogParam param);
+
+/**
+ * Initialise the UService  *
+ */
+struct UService *uservice_init(const char *name);
+
+/**
+ * Free the UService  *
+ */
+uint32_t uservice_free(struct UService *ptr);
+
+/**
+ * Start the microservice and keep exe control until it is complete  *  * retain exec until the service exits  *  * ```  * uservice:uservice_start()  * ```
+ */
+uint32_t uservice_start(struct UService *ptr);
+
+uint32_t uservice_stop(struct UService *ptr);
+
+/**
+ * Initialise the FFI based logging for this crate
+ */
+uint32_t pservices_logger_init(struct UService *ptr, LogParam param);
+
+/**
+ * Initialise the FFI based logging for this crate
+ */
+uint32_t pservices_init(struct UService *ptr, const char *config_yaml);
+
+/**
+ * Initialise the FFI based logging for this crate
+ */
+uint32_t pservice_register(struct UService *ptr, const char *name, const char *library);
+
+/**
+ * Initialise the FFI based logging for this crate
+ */
+uint32_t pservice_free(struct UService *ptr, const char *name);
 
 /**
  *  * Register the so functions for the library
@@ -64,16 +101,6 @@ int32_t so_service_init(struct SoService *ptr, int32_t param);
 int32_t so_service_process(struct SoService *ptr, int32_t param);
 
 /**
- * Initialise the UService  *
- */
-struct UService *uservice_init(const char *name);
-
-/**
- * Free the UService  *
- */
-void uservice_free(struct UService *ptr);
-
-/**
  * Add SO to uservice
  */
 void uservice_add_so(struct UService *uservice_ptr,
@@ -81,13 +108,6 @@ void uservice_add_so(struct UService *uservice_ptr,
                      struct SoService *soservice_ptr);
 
 struct SoService *uservice_remove_so(struct UService *uservice_ptr, const char *name);
-
-/**
- * Start the microservice and keep exe control until it is complete  *  * retain exec until the service exits  *  * ```  * uservice:uservice_start()  * ```
- */
-void uservice_start(struct UService *ptr);
-
-void uservice_stop(struct UService *ptr);
 
 /**
  * Create a health probe
@@ -104,5 +124,7 @@ void uservice_stop(struct UService *ptr);
  */
 int createHealthProbe(const char *name,
                       int margin_ms);
+
+uint32_t panic_check(void);
 
 #endif /* uservice_h */

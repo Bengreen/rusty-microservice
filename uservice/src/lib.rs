@@ -1,6 +1,8 @@
 use core::panic;
+use std::any::Any;
+use ffi_helpers::catch_panic;
 use libloading::Library;
-use log::info;
+use log::{info, error};
 use std::panic::catch_unwind;
 
 use std::ffi::CStr;
@@ -20,17 +22,7 @@ use crate::uservice::UService;
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Initialise the FFI based logging for this crate
-#[no_mangle]
-pub extern "C" fn uservice_logger_init(param: LogParam) {
-    logger_init(param);
-    info!(
-        "Logging registered for {}:{} (PID: {}) using FFI",
-        NAME,
-        VERSION,
-        process::id()
-    );
-}
+
 
 /// Register a shared library for by the name of the library
 ///
@@ -74,6 +66,243 @@ pub extern "C" fn so_library_free(ptr: *mut Library) {
         Box::from_raw(ptr);
     }
 }
+
+
+
+/// Initialise the FFI based logging for this crate
+#[no_mangle]
+pub extern "C" fn uservice_logger_init(param: LogParam) {
+    logger_init(param);
+    info!(
+        "Logging registered for {}:{} (PID: {}) using FFI",
+        NAME,
+        VERSION,
+        process::id()
+    );
+}
+
+/** Initialise the UService
+ *
+ */
+#[no_mangle]
+pub extern "C" fn uservice_init<'a>(name: *const libc::c_char) -> *mut UService<'a> {
+    // TODO: Correct this to follow the FFI safe error respose
+    let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            panic!(
+                "FFI string conversion failed for registering the so library with error: {}",
+                e
+            );
+        }
+    };
+    info!("Registering library: {}", name_str);
+
+    info!("Init UService");
+
+    Box::into_raw(Box::new(UService::new(name_str)))
+}
+
+/** Free the UService
+ *
+ */
+#[no_mangle]
+pub extern "C" fn uservice_free(ptr: *mut UService) -> u32 {
+    if ptr.is_null() {
+        return 1;
+    }
+    info!("Releasing uservice");
+
+    unsafe {
+        Box::from_raw(ptr);
+    }
+    0
+}
+
+/** Start the microservice and keep exe control until it is complete
+ *
+ * retain exec until the service exits
+ *
+ * ```
+ * uservice:uservice_start()
+ * ```
+ */
+#[no_mangle]
+pub extern "C" fn uservice_start(ptr: *mut UService) -> u32 {
+    let uservice = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    info!("Uservice Start called");
+
+    info!("Initializing the service with PID: {}", process::id());
+
+    uservice.start();
+    // let result = catch_unwind(|| {
+    //     // start the service
+    //     uservice.start();
+    //     // uservice::start(&config, service);
+    // });
+    // match result {
+    //     Ok(_) => info!("UService completed successfully"),
+    //     Err(_) => error!("UService had a panic"),
+    // }
+
+    info!("UService completed");
+    0
+}
+
+
+#[no_mangle]
+pub extern "C" fn uservice_stop(ptr: *mut UService) -> u32 {
+    let uservice = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    info!("Uservice Stop called");
+
+    info!("Stopping the service with PID: {}", process::id());
+
+    uservice.stop();
+    // let result = catch_unwind(|| {
+    //     // start the service
+    //     uservice.start();
+    //     // uservice::start(&config, service);
+    // });
+    // match result {
+    //     Ok(_) => info!("UService completed successfully"),
+    //     Err(_) => error!("UService had a panic"),
+    // }
+
+    info!("UService stop called");
+    0
+}
+
+
+/// Initialise the FFI based logging for this crate
+#[no_mangle]
+pub extern "C" fn pservices_logger_init(ptr: *mut UService, param: LogParam) -> u32 {
+    let uservice = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    // TODO: Check that param is not null
+    0
+    // logger_init(param);
+    // info!(
+    //     "Logging registered for {}:{} (PID: {}) using FFI",
+    //     NAME,
+    //     VERSION,
+    //     process::id()
+    // );
+}
+
+/// Initialise the FFI based logging for this crate
+#[no_mangle]
+pub extern "C" fn pservices_init(ptr: *mut UService, config_yaml: *const libc::c_char) -> u32 {
+    let uservice = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    let config_yaml_str: &str = match unsafe { std::ffi::CStr::from_ptr(config_yaml) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            panic!(
+                "FFI string conversion failed for performing pservices_init: {}",
+                e
+            );
+        }
+    };
+    // TODO: Check that param is not null
+    0
+    // logger_init(param);
+    // info!(
+    //     "Logging registered for {}:{} (PID: {}) using FFI",
+    //     NAME,
+    //     VERSION,
+    //     process::id()
+    // );
+}
+
+/// Initialise the FFI based logging for this crate
+#[no_mangle]
+pub extern "C" fn pservice_register(ptr: *mut UService, name: *const libc::c_char, library: *const libc::c_char) -> u32 {
+    let uservice = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            panic!(
+                "FFI string conversion failed for pservices_register name: {}",
+                e
+            );
+        }
+    };
+    let library_str: &str = match unsafe { std::ffi::CStr::from_ptr(library) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            panic!(
+                "FFI string conversion failed for pservices_register library: {}",
+                e
+            );
+        }
+    };
+    // TODO: Check that param is not null
+    0
+    // logger_init(param);
+    // info!(
+    //     "Logging registered for {}:{} (PID: {}) using FFI",
+    //     NAME,
+    //     VERSION,
+    //     process::id()
+    // );
+}
+
+
+
+/// Initialise the FFI based logging for this crate
+#[no_mangle]
+pub extern "C" fn pservice_free(ptr: *mut UService, name: *const libc::c_char) -> u32 {
+    let uservice = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            panic!(
+                "FFI string conversion failed for pservices_register name: {}",
+                e
+            );
+        }
+    };
+    // TODO: Check that param is not null
+    0
+    // logger_init(param);
+    // info!(
+    //     "Logging registered for {}:{} (PID: {}) using FFI",
+    //     NAME,
+    //     VERSION,
+    //     process::id()
+    // );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * Register the so functions for the library
@@ -143,41 +372,7 @@ pub extern "C" fn so_service_process(ptr: *mut SoService, param: i32) -> i32 {
     (&service.process)(param)
 }
 
-/** Initialise the UService
- *
- */
-#[no_mangle]
-pub extern "C" fn uservice_init<'a>(name: *const libc::c_char) -> *mut UService<'a> {
-    let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            panic!(
-                "FFI string conversion failed for registering the so library with error: {}",
-                e
-            );
-        }
-    };
-    info!("Registering library: {}", name_str);
 
-    info!("Init UService");
-
-    Box::into_raw(Box::new(UService::new(name_str)))
-}
-
-/** Free the UService
- *
- */
-#[no_mangle]
-pub extern "C" fn uservice_free(ptr: *mut UService) {
-    if ptr.is_null() {
-        return;
-    }
-    info!("Releasing uservice");
-
-    unsafe {
-        Box::from_raw(ptr);
-    }
-}
 
 /** Add SO to uservice
  */
@@ -236,61 +431,7 @@ pub extern "C" fn uservice_remove_so(
     Box::into_raw(soservice)
 }
 
-/** Start the microservice and keep exe control until it is complete
- *
- * retain exec until the service exits
- *
- * ```
- * uservice:uservice_start()
- * ```
- */
-#[no_mangle]
-pub extern "C" fn uservice_start(ptr: *mut UService) {
-    let uservice = unsafe {
-        assert!(!ptr.is_null());
-        &mut *ptr
-    };
-    info!("Uservice Start called");
 
-    info!("Initializing the service with PID: {}", process::id());
-
-    uservice.start();
-    // let result = catch_unwind(|| {
-    //     // start the service
-    //     uservice.start();
-    //     // uservice::start(&config, service);
-    // });
-    // match result {
-    //     Ok(_) => info!("UService completed successfully"),
-    //     Err(_) => error!("UService had a panic"),
-    // }
-
-    info!("UService completed");
-}
-
-#[no_mangle]
-pub extern "C" fn uservice_stop(ptr: *mut UService) {
-    let uservice = unsafe {
-        assert!(!ptr.is_null());
-        &mut *ptr
-    };
-    info!("Uservice Stop called");
-
-    info!("Stopping the service with PID: {}", process::id());
-
-    uservice.stop();
-    // let result = catch_unwind(|| {
-    //     // start the service
-    //     uservice.start();
-    //     // uservice::start(&config, service);
-    // });
-    // match result {
-    //     Ok(_) => info!("UService completed successfully"),
-    //     Err(_) => error!("UService had a panic"),
-    // }
-
-    info!("UService stop called");
-}
 
 #[no_mangle]
 /// Create a health probe
@@ -318,6 +459,97 @@ pub extern "C" fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_
 
     name_str.len() as i32 + margin_ms
 }
+#[derive(Debug)]
+enum Error {
+  Message(String),
+   Unknown,
+}
+
+impl From<Box<dyn Any + Send + 'static>> for Error {
+   fn from(other: Box<dyn Any + Send + 'static>) -> Error {
+     if let Some(owned) = other.downcast_ref::<String>() {
+       Error::Message(owned.clone())
+     } else if let Some(owned) = other.downcast_ref::<String>() {
+       Error::Message(owned.to_string())
+     } else {
+       Error::Unknown
+     }
+   }
+}
+
+#[no_mangle]
+pub extern  "C" fn panic_check() -> u32 {
+    println!("I am a simple example");
+
+    let result:Result<u32,()> = catch_panic(|| {
+        let something  = None;
+        something.unwrap()
+    });
+    // let result:Result<u32, Box<_>> = catch_unwind(|| {
+    //     let something  = None;
+    //     something.unwrap()
+    //     // panic!("Damn this is cool");
+    // });
+    let message = format!("{:?}", result);
+
+    match result {
+        Ok(_) => {
+            info!("UService completed successfully");
+            0
+        },
+        Err(e) => {
+            error!("UService had a panic");
+            1
+        },
+    }
+}
+
+#[cfg(test)]
+mod panic_check_tests{
+    use ffi_helpers::error_handling;
+    use libc::{c_char, c_int};
+    use log::info;
+
+    use crate::panic_check;
+
+    #[test]
+    fn check_return() {
+        println!("Running my test");
+
+        let ret_val = panic_check();
+        match ret_val {
+            0 => println!("funciton retuned nicely"),
+            _ => {
+                println!("OOH OOHHH");
+                let err_msg_length = error_handling::last_error_length();
+                let mut buffer = vec![0; err_msg_length as usize];
+                let bytes_written = unsafe {
+                    let buf = buffer.as_mut_ptr() as *mut c_char;
+                    let len = buffer.len() as c_int;
+
+                    error_handling::error_message_utf8(buf, len)
+                };
+                match bytes_written {
+                    -1 => panic!("Our buffer wasn't big enough!"),
+                    0 => panic!("There wasn't an error message... Huh?"),
+                    len if len > 0 => {
+                        buffer.truncate(len as usize - 1);
+                        let msg = String::from_utf8(buffer).unwrap();
+                        println!("Error: {}", msg);
+                    }
+                    _ => unreachable!(),
+                }
+
+            }
+        }
+        // assert_eq!(ret_val, 0);
+        println!("Test is completed");
+    }
+}
+
+
+
+
 
 #[cfg(test)]
 mod tests {
