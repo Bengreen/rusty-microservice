@@ -275,7 +275,7 @@ pub fn pservice_free_ffi<S: Into<String>>(service: *mut UService, library_name: 
 where
     S: Display
 {
-    info!("Registering pservice: {}", &library_name);
+    info!("Freeing pservice: {}", &library_name);
     let c_library_name = std::ffi::CString::new(library_name.into())?;
 
     let _ret_val = unsafe {

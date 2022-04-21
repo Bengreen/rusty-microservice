@@ -1303,6 +1303,7 @@ dependencies = [
  "ffi-log2",
  "futures",
  "lazy_static",
+ "libc",
  "log",
  "prometheus",
  "rand",

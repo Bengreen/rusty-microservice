@@ -6,6 +6,7 @@ use crate::k8slifecycle::HealthCheck;
 use crate::picoservice::PicoService;
 use futures::future;
 use log::info;
+use warp::Filter;
 
 use std::collections::HashMap;
 use std::mem;
@@ -18,6 +19,10 @@ pub struct UServiceConfig {
     pub name: String,
 }
 
+
+/// A UService allowsing multiple pServices to be assembled within it.
+/// The UService provides the basic scaffolding for the web service and a loader capabilty to load and service picoservices.
+/// The basic UService will reply with status information on the picoservcies provided
 #[derive(Debug)]
 pub struct UService<'a> {
     pub name: String,
@@ -28,6 +33,8 @@ pub struct UService<'a> {
     liveness: HealthCheck,
     readyness: HealthCheck,
     kill: Option<Mutex<Sender<()>>>,
+    version: String,
+    port: u16,
 }
 
 impl<'a> UService<'a> {
@@ -41,8 +48,13 @@ impl<'a> UService<'a> {
             liveness: HealthCheck::new("liveness"),
             readyness: HealthCheck::new("readyness"),
             kill: None,
+            version: "v1".to_string(),
+            port: 8080,
         }
     }
+
+
+    /// Initialise the async service and initialise services within it
     pub fn start(&mut self) {
         info!("Starting uservice here");
 
@@ -91,6 +103,10 @@ impl<'a> UService<'a> {
         todo!("pico service add")
     }
 
+
+    /// Start async processes for the UService
+    /// Start the health service
+    /// Start the services themselves and insert appropriate web services
     pub async fn start_async(&mut self, mut kill_signal: Receiver<()>) {
         info!("Starting ASYNC");
 
@@ -102,6 +118,8 @@ impl<'a> UService<'a> {
         // Init any service loops at this point
         // Anything created should return a HandleChannel to provide a kill option for the loop AND async handle to allow it to be joined and awaited.
 
+
+
         self.so_services.lock().unwrap().iter().for_each(
             |(name, service)| {
             info!("Dispatching SoService: {}", name);
@@ -110,25 +128,38 @@ impl<'a> UService<'a> {
             }
         );
 
-        let kill_send = self.kill.as_ref().unwrap().lock().unwrap().clone();
+        let (channel_svc, kill_recv_svc) = mpsc::channel(1);
+        self.add(
+            channel_svc,
+            self.service_listen(
+                kill_recv_svc,
+            )
+            .await,
 
-        let (channel, kill_recv) = mpsc::channel(1);
+        );
+
+
+        //let kill_send_health = self.kill.as_ref().unwrap().lock().unwrap().clone();
+
+        let (channel_health, kill_recv_health) = mpsc::channel(1);
 
         self.add(
-            channel,
+            channel_health,
             health_listen(
                 "health",
                 7979,
                 &self.liveness,
                 &self.readyness,
-                kill_recv,
-                kill_send,
+                kill_recv_health,
+                self.kill.as_ref().unwrap().lock().unwrap().clone(),
             )
             .await,
         );
 
         let channels_register = self.channels.clone();
         tokio::spawn(async move {
+            // TODO: Check if this future should be waited via the join
+
             let mut sig_terminate =
                 signal(SignalKind::terminate()).expect("Register terminate signal handler");
             let mut sig_quit = signal(SignalKind::quit()).expect("Register quit signal handler");
@@ -146,19 +177,22 @@ impl<'a> UService<'a> {
             };
             info!("Signal handler triggered to start Shutdown");
 
+            // Once signal handlers have triggered shutdowns then send the kill signal to each registered shutdown
             UService::shutdown(channels_register).await;
         });
 
         self.join().await;
     }
 
+    /// Create a task that runs in async parallel. Each task must provide a channel that allow sthe task to receive a message and exit
+    /// The task must also return a handle which can be awaited to confirm the function has completed successfully.
     pub fn add(&self, channel: Sender<()>, handle: tokio::task::JoinHandle<()>) {
         self.handles.lock().unwrap().push(handle);
         self.channels.lock().unwrap().push(channel);
     }
 
     pub async fn shutdown(channels: Arc<Mutex<Vec<mpsc::Sender<()>>>>) {
-        let channels = channels.lock().unwrap().clone();
+            let channels = channels.lock().unwrap().clone();
 
         for channel in channels.iter() {
             let channel_rx = channel.send(()).await;
@@ -178,4 +212,45 @@ impl<'a> UService<'a> {
         future::join_all(mem::take(&mut *handles)).await;
         info!("Services completed");
     }
+
+    pub async fn service_listen(
+        &self,
+        mut kill_recv: Receiver<()>,
+    ) -> tokio::task::JoinHandle<()> {
+
+
+        let api = self.service();
+
+        let routes = api.with(warp::log("uservice"));
+
+
+        let (_addr, server) =
+        warp::serve(routes).bind_with_graceful_shutdown(([0, 0, 0, 0], self.port), async move {
+            kill_recv.recv().await;
+        });
+
+        info!("Serving service ({}) on port {}", self.name, self.port);
+        tokio::task::spawn(server)
+    }
+
+    // fn with_services(
+    //     &self,
+    // ) -> impl Filter<Extract = (Arc<std::sync::Mutex<HashMap<String, Box<SoService<'a>>>>>,), Error = std::convert::Infallible> + Clone
+    // {
+    //     warp::any().map(move || self.so_services.clone())
+    // }
+
+    pub fn service(&self, ) -> impl Filter<Extract = impl warp::Reply, Error=warp::Rejection> + Clone {
+        // let with_services = warp::any().map(move || self.so_services.clone());
+
+        warp::path(self.name.clone())
+            .and(warp::path(self.version.clone()))
+            .and(warp::path("pservice"))
+            .and(warp::get())
+            // .and(with_services)
+            .map(|| {
+                format!("Hello {}, whose agent is {}", "self.name", "so_services")
+            })
+    }
+
 }

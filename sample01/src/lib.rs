@@ -3,6 +3,8 @@ use log::info;
 use ffi_log2::{logger_init, LogParam};
 
 use std::process;
+use std::ffi::CString;
+use libc::c_char;
 // mod simpleservice;
 
 const NAME: &str = env!("CARGO_PKG_NAME");
@@ -36,6 +38,21 @@ pub extern "C" fn init_logger(param: LogParam) {
         process::id()
     );
 }
+
+#[no_mangle]
+pub extern "C" fn name() -> *const c_char {
+    let c_str_name = CString::new(NAME).unwrap();
+
+    c_str_name.into_raw()
+}
+
+#[no_mangle]
+pub extern "C" fn version() -> *const c_char {
+    let c_str_name = CString::new(VERSION).unwrap();
+
+    c_str_name.into_raw()
+}
+
 
 #[no_mangle]
 extern "C" fn init(a: i32) -> i32 {

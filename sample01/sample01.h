@@ -17,4 +17,8 @@ void sample01_run();
 
 void init_logger(LogParam param);
 
+const char *name();
+
+const char *version();
+
 } // extern "C"

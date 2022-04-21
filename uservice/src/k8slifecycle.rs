@@ -16,6 +16,7 @@ use tokio::sync::mpsc::Receiver;
 use warp::Filter;
 
 lazy_static! {
+    // TODO: remove the static implementation of this and replace with instances
     pub static ref INCOMING_REQUESTS: IntCounter =
         IntCounter::new("incoming_requests", "Incoming Requests").expect("metric can be created");
     pub static ref RESPONSE_CODE_COLLECTOR: IntCounterVec = IntCounterVec::new(

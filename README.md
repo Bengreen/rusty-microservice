@@ -20,6 +20,9 @@ Create a small runtime that implements the following.
   * [ ] Benchmark difference between function called directly and via ffi callback
   * [x] Docker build for cargo: https://github.com/LukeMathWalker/cargo-chef
   * [ ] Create a service sample01 as a PicoService within the sample01 service
+  * [ ] Create a uservice with a given name. When this is created respond with that URL to describe the names of the picoservices loaded.
+  * [ ] Ability to load multiple uservices
+  * [ ] Allow picoservices to be loaded to the uservice
   * [ ] Load the sample01 into the service via
 
 

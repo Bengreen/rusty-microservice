@@ -10,8 +10,16 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+/**
+ * Representation of the APIs required to load a SO for UService
+ */
 typedef struct SoService SoService;
 
+/**
+ * A UService allowsing multiple pServices to be assembled within it.
+ * The UService provides the basic scaffolding for the web service and a loader capabilty to load and service picoservices.
+ * The basic UService will reply with status information on the picoservcies provided
+ */
 typedef struct UService UService;
 
 /**
@@ -29,7 +37,7 @@ typedef struct UService UService;
 Library *so_library_register(const char *name);
 
 /**
- *  * Free the library
+ * Free the library
  */
 void so_library_free(Library *ptr);
 
@@ -46,12 +54,12 @@ struct UService *uservice_init(const char *name);
 /**
  * Free the UService  *
  */
-uint32_t uservice_free(struct UService *ptr);
+int32_t uservice_free(struct UService *ptr);
 
 /**
- * Start the microservice and keep exe control until it is complete  *  * retain exec until the service exits  *  * ```  * uservice:uservice_start()  * ```
+ * Start the microservice and keep exe control until it is complete  *  * If the function throws a panic while running the error is returned via the local thread memory and a non-zero value is returned.  *  * retain exec until the service exits  *  * ```  * uservice:uservice_start()  * ```
  */
-uint32_t uservice_start(struct UService *ptr);
+int32_t uservice_start(struct UService *uservice_ptr);
 
 uint32_t uservice_stop(struct UService *ptr);
 
@@ -76,22 +84,22 @@ uint32_t pservice_register(struct UService *ptr, const char *name, const char *l
 uint32_t pservice_free(struct UService *ptr, const char *name);
 
 /**
- *  * Register the so functions for the library
+ * Register the so functions for the library
  */
 struct SoService *so_service_register(Library *ptr);
 
 /**
- *  * Free the service for the so library
+ * Free the service for the so library
  */
 void so_service_free(struct SoService *ptr);
 
 /**
- *  * Call the process function
+ *Call the process function
  */
 void so_service_logger_init(struct SoService *ptr, LogParam param);
 
 /**
- *  * Call the init function
+ * Call the init function
  */
 int32_t so_service_init(struct SoService *ptr, int32_t param);
 

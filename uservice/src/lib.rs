@@ -3,7 +3,6 @@ use std::any::Any;
 use ffi_helpers::catch_panic;
 use libloading::Library;
 use log::{info, error};
-use std::panic::catch_unwind;
 
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
@@ -36,6 +35,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// - won't be mutated for the duration of this function call
 #[no_mangle]
 pub extern "C" fn so_library_register<'a>(name: *const libc::c_char) -> *mut Library {
+    // ffi_helpers::null_pointer_check!(name);
+
     let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
         Ok(s) => s,
         Err(e) => {
@@ -52,9 +53,7 @@ pub extern "C" fn so_library_register<'a>(name: *const libc::c_char) -> *mut Lib
     ))
 }
 
-/**
- * Free the library
- */
+/// Free the library
 #[no_mangle]
 pub extern "C" fn so_library_free(ptr: *mut Library) {
     if ptr.is_null() {
@@ -107,11 +106,12 @@ pub extern "C" fn uservice_init<'a>(name: *const libc::c_char) -> *mut UService<
  *
  */
 #[no_mangle]
-pub extern "C" fn uservice_free(ptr: *mut UService) -> u32 {
-    if ptr.is_null() {
-        return 1;
-    }
-    info!("Releasing uservice");
+pub extern "C" fn uservice_free(ptr: *mut UService) -> i32 {
+    ffi_helpers::null_pointer_check!(ptr, -1);
+
+    let name = &unsafe{&(*ptr)}.name;
+
+    info!("Releasing uservice: {}", name);
 
     unsafe {
         Box::from_raw(ptr);
@@ -121,6 +121,8 @@ pub extern "C" fn uservice_free(ptr: *mut UService) -> u32 {
 
 /** Start the microservice and keep exe control until it is complete
  *
+ * If the function throws a panic while running the error is returned via the local thread memory and a non-zero value is returned.
+ *
  * retain exec until the service exits
  *
  * ```
@@ -128,28 +130,29 @@ pub extern "C" fn uservice_free(ptr: *mut UService) -> u32 {
  * ```
  */
 #[no_mangle]
-pub extern "C" fn uservice_start(ptr: *mut UService) -> u32 {
-    let uservice = unsafe {
-        assert!(!ptr.is_null());
-        &mut *ptr
-    };
-    info!("Uservice Start called");
+pub extern "C" fn uservice_start(uservice_ptr: *mut UService) -> i32 {
+    ffi_helpers::null_pointer_check!(uservice_ptr, -1);
 
-    info!("Initializing the service with PID: {}", process::id());
+    let result =  catch_panic(|| {
+        let uservice = unsafe {
+            &mut *uservice_ptr
+        };
+        info!("Uservice Start with PID: {}", process::id());
 
-    uservice.start();
-    // let result = catch_unwind(|| {
-    //     // start the service
-    //     uservice.start();
-    //     // uservice::start(&config, service);
-    // });
-    // match result {
-    //     Ok(_) => info!("UService completed successfully"),
-    //     Err(_) => error!("UService had a panic"),
-    // }
+        uservice.start();
+        Ok(0)
+    });
 
-    info!("UService completed");
-    0
+    match result {
+        Ok(value) => {
+            info!("uservice_start completed successfully");
+            value
+        },
+        Err(_e) => {
+            error!("uservice_start failed with panic");
+            -2
+        },
+    }
 }
 
 
@@ -304,9 +307,8 @@ pub extern "C" fn pservice_free(ptr: *mut UService, name: *const libc::c_char) -
 
 
 
-/**
- * Register the so functions for the library
- */
+
+/// Register the so functions for the library
 #[no_mangle]
 pub extern "C" fn so_service_register<'a>(ptr: *mut Library) -> *mut SoService<'a> {
     let library = unsafe {
@@ -314,13 +316,11 @@ pub extern "C" fn so_service_register<'a>(ptr: *mut Library) -> *mut SoService<'
         &mut *ptr
     };
     info!("Registering functions");
-
-    Box::into_raw(Box::new(SoService::new(library)))
+    let new_lib = SoService::new(library).expect("Loaded all elements of library");
+    Box::into_raw(Box::new(new_lib))
 }
 
-/**
- * Free the service for the so library
- */
+/// Free the service for the so library
 #[no_mangle]
 pub extern "C" fn so_service_free(ptr: *mut SoService) {
     if ptr.is_null() {
@@ -333,9 +333,7 @@ pub extern "C" fn so_service_free(ptr: *mut SoService) {
     }
 }
 
-/**
- * Call the process function
- */
+///Call the process function
 #[no_mangle]
 pub extern "C" fn so_service_logger_init(ptr: *mut SoService, param: LogParam) {
     let service = unsafe {
@@ -346,9 +344,7 @@ pub extern "C" fn so_service_logger_init(ptr: *mut SoService, param: LogParam) {
     (&service.init_logger)(param)
 }
 
-/**
- * Call the init function
- */
+/// Call the init function
 #[no_mangle]
 pub extern "C" fn so_service_init(ptr: *mut SoService, param: i32) -> i32 {
     let service = unsafe {
@@ -459,10 +455,13 @@ pub extern "C" fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_
 
     name_str.len() as i32 + margin_ms
 }
+
+
+/// Error type for handling errors on FFI calls
 #[derive(Debug)]
 enum Error {
-  Message(String),
-   Unknown,
+    Message(String),
+    Unknown,
 }
 
 impl From<Box<dyn Any + Send + 'static>> for Error {
@@ -485,11 +484,7 @@ pub extern  "C" fn panic_check() -> u32 {
         let something  = None;
         something.unwrap()
     });
-    // let result:Result<u32, Box<_>> = catch_unwind(|| {
-    //     let something  = None;
-    //     something.unwrap()
-    //     // panic!("Damn this is cool");
-    // });
+
     let message = format!("{:?}", result);
 
     match result {

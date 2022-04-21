@@ -93,6 +93,7 @@ pub fn main() {
             let uservice = uservice_init_ffi("pear").expect("UService did not initialise");
             info!("Initialised UService");
 
+
             pservice_register_ffi(uservice, "apple", library).expect("Load pservice library");
             info!("Service loaded");
 
@@ -104,8 +105,15 @@ pub fn main() {
             pservices_init_ffi(uservice, my_config).expect("init completes");
             info!("PServices init completed");
 
+
+            // Start the UService here
+
             uservice_start_ffi(uservice).expect("uservice init completes");
             info!("uservice completed and exited");
+
+
+            // UService has exited here
+
 
             // uservice_stop_ffi(uservice).expect("")  // NOT needed as already stopped
             pservice_free_ffi(uservice, "apple").expect("pservice freed");
