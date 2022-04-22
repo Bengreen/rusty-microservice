@@ -12,6 +12,13 @@
 
 /**
  * Representation of the APIs required to load a SO for UService
+ *
+ * Initial attempt at building this class used the libloading symbols. But after bringing through and attempting to use with warp web server I ran into an issue.
+ * The warp web server assumes a `static lifetime for the web server. This contrasts with the libloading symbol with has a definitive lifetime. Therefore an object witth
+ * a libloading based lifetime cannot be used by a warp object as their lifetimes are contradictory.
+ *
+ * As an alternative we can 'eject' the lifetimes out of the symbols and take ownership of the lifetimes ourselves. This should result in a lifetime for the SoService that is not
+ * contradictory with the Warp library
  */
 typedef struct SoService SoService;
 

@@ -24,12 +24,12 @@ pub struct UServiceConfig {
 /// The UService provides the basic scaffolding for the web service and a loader capabilty to load and service picoservices.
 /// The basic UService will reply with status information on the picoservcies provided
 #[derive(Debug)]
-pub struct UService<'a> {
+pub struct UService {
     pub name: String,
     // pub rt: tokio::runtime::Runtime,
     channels: Arc<Mutex<Vec<mpsc::Sender<()>>>>,
     handles: Arc<Mutex<Vec<tokio::task::JoinHandle<()>>>>,
-    so_services: Arc<Mutex<HashMap<String, Box<SoService<'a>>>>>,
+    so_services: Arc<Mutex<HashMap<String, Box<SoService>>>>,
     liveness: HealthCheck,
     readyness: HealthCheck,
     kill: Option<Mutex<Sender<()>>>,
@@ -37,7 +37,7 @@ pub struct UService<'a> {
     port: u16,
 }
 
-impl<'a> UService<'a> {
+impl<'a> UService {
     pub fn new(name: &str) -> UService {
         UService {
             name: name.to_string(),
@@ -82,7 +82,7 @@ impl<'a> UService<'a> {
             .expect("Send close to async");
     }
 
-    pub fn add_soservice<'b: 'a>(&'b mut self, name: &str, so_service: Box<SoService<'a>>) {
+    pub fn add_soservice<'b: 'a>(&'b mut self, name: &str, so_service: Box<SoService>) {
         self.so_services
             .lock()
             .unwrap()
@@ -240,24 +240,32 @@ impl<'a> UService<'a> {
         warp::any().map(move || myname.clone())
     }
 
+    fn  with_so_services(
+        &self,
+    ) -> impl Filter<Extract = (Arc<Mutex<HashMap<String, Box<SoService>>>>,), Error = std::convert::Infallible> + Clone
+    {
+        let so_services = self.so_services.clone();
+        warp::any().map(move || so_services.clone())
+    }
 
-    pub fn service(&self, ) -> impl Filter<Extract = impl warp::Reply, Error=warp::Rejection> + Clone{
+
+    pub fn service(&self, ) -> impl Filter<Extract = impl warp::Reply, Error=warp::Rejection> + Clone + 'a {
         // let with_services = warp::any().map(move || self.so_services.clone());
 
         let so_services: Arc<Mutex<HashMap<String, Box<SoService>>>> = self.so_services.clone();
 
         let myname = self.name.clone();
-        let with_so_services = warp::any().map(move || so_services.clone());
+        // let with_so_services = warp::any().map(move || so_services.clone());
 
         warp::path(self.name.clone())
             .and(warp::path(self.version.clone()))
             .and(warp::path("pservice"))
             .and(warp::get())
             .and(self.with_name())
-            // .and(with_so_services)
-            .map(|name| {
-                // let pservicecount=so_services.lock().unwrap().iter().count();
-                format!("Hello {}, whose agent is {}", "self.name", name)
+            .and(self.with_so_services())
+            .map(|name, so_services: Arc<Mutex<HashMap<String, Box<SoService>>>>| {
+                let pservicecount=so_services.lock().unwrap().iter().count();
+                format!("Hello {}, whose agent is {} and {}", "self.name", name, pservicecount)
             })
     }
 

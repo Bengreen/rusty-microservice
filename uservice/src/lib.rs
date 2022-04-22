@@ -84,7 +84,7 @@ pub extern "C" fn uservice_logger_init(param: LogParam) {
  *
  */
 #[no_mangle]
-pub extern "C" fn uservice_init<'a>(name: *const libc::c_char) -> *mut UService<'a> {
+pub extern "C" fn uservice_init<'a>(name: *const libc::c_char) -> *mut UService {
     // TODO: Correct this to follow the FFI safe error respose
     let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
         Ok(s) => s,
@@ -310,7 +310,7 @@ pub extern "C" fn pservice_free(ptr: *mut UService, name: *const libc::c_char) -
 
 /// Register the so functions for the library
 #[no_mangle]
-pub extern "C" fn so_service_register<'a>(ptr: *mut Library) -> *mut SoService<'a> {
+pub extern "C" fn so_service_register<'a>(ptr: *mut Library) -> *mut SoService {
     let library = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
@@ -374,9 +374,9 @@ pub extern "C" fn so_service_process(ptr: *mut SoService, param: i32) -> i32 {
  */
 #[no_mangle]
 pub extern "C" fn uservice_add_so<'a>(
-    uservice_ptr: *mut UService<'a>,
+    uservice_ptr: *mut UService,
     name: *const libc::c_char,
-    soservice_ptr: *mut SoService<'a>,
+    soservice_ptr: *mut SoService,
 ) {
     let uservice = unsafe {
         assert!(!uservice_ptr.is_null());
