@@ -218,7 +218,6 @@ impl<'a> UService<'a> {
         mut kill_recv: Receiver<()>,
     ) -> tokio::task::JoinHandle<()> {
 
-
         let api = self.service();
 
         let routes = api.with(warp::log("uservice"));
@@ -233,23 +232,32 @@ impl<'a> UService<'a> {
         tokio::task::spawn(server)
     }
 
-    // fn with_services(
-    //     &self,
-    // ) -> impl Filter<Extract = (Arc<std::sync::Mutex<HashMap<String, Box<SoService<'a>>>>>,), Error = std::convert::Infallible> + Clone
-    // {
-    //     warp::any().map(move || self.so_services.clone())
-    // }
+    fn  with_name(
+        &self,
+    ) -> impl Filter<Extract = (String,), Error = std::convert::Infallible> + Clone
+    {
+        let myname = self.name.clone();
+        warp::any().map(move || myname.clone())
+    }
 
-    pub fn service(&self, ) -> impl Filter<Extract = impl warp::Reply, Error=warp::Rejection> + Clone {
+
+    pub fn service(&self, ) -> impl Filter<Extract = impl warp::Reply, Error=warp::Rejection> + Clone{
         // let with_services = warp::any().map(move || self.so_services.clone());
+
+        let so_services: Arc<Mutex<HashMap<String, Box<SoService>>>> = self.so_services.clone();
+
+        let myname = self.name.clone();
+        let with_so_services = warp::any().map(move || so_services.clone());
 
         warp::path(self.name.clone())
             .and(warp::path(self.version.clone()))
             .and(warp::path("pservice"))
             .and(warp::get())
-            // .and(with_services)
-            .map(|| {
-                format!("Hello {}, whose agent is {}", "self.name", "so_services")
+            .and(self.with_name())
+            // .and(with_so_services)
+            .map(|name| {
+                // let pservicecount=so_services.lock().unwrap().iter().count();
+                format!("Hello {}, whose agent is {}", "self.name", name)
             })
     }
 
