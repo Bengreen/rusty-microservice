@@ -83,7 +83,7 @@ uint32_t pservices_init(struct UService *ptr, const char *config_yaml);
 /**
  * Initialise the FFI based logging for this crate
  */
-uint32_t pservice_register(struct UService *ptr, const char *name, const char *library);
+int32_t pservice_register(struct UService *uservice, const char *name, const char *library);
 
 /**
  * Initialise the FFI based logging for this crate

@@ -4,6 +4,7 @@ use crate::ffi_service::SoService;
 use crate::k8slifecycle::health_listen;
 use crate::k8slifecycle::HealthCheck;
 use crate::picoservice::PicoService;
+use ffi_log2::LogParam;
 use futures::future;
 use log::info;
 use warp::Filter;
@@ -96,6 +97,16 @@ impl<'a> UService {
             .unwrap()
             .remove(name)
             .expect("remove soservice from map")
+    }
+
+    pub fn init_logger(&mut self, name: &str, param: LogParam ) {
+        (&self.so_services
+            .lock()
+            .unwrap()
+            .get(name)
+            .expect("pservice exists")
+            .as_ref()
+            .init_logger)(param);
     }
 
     pub fn add_picoservice(&mut self, pico: &mut dyn PicoService) {
@@ -250,12 +261,8 @@ impl<'a> UService {
 
 
     pub fn service(&self, ) -> impl Filter<Extract = impl warp::Reply, Error=warp::Rejection> + Clone + 'a {
-        // let with_services = warp::any().map(move || self.so_services.clone());
 
-        let so_services: Arc<Mutex<HashMap<String, Box<SoService>>>> = self.so_services.clone();
-
-        let myname = self.name.clone();
-        // let with_so_services = warp::any().map(move || so_services.clone());
+        info!("Serving at /{}/{}/{}", self.name, self.version, "pservice");
 
         warp::path(self.name.clone())
             .and(warp::path(self.version.clone()))
@@ -265,7 +272,8 @@ impl<'a> UService {
             .and(self.with_so_services())
             .map(|name, so_services: Arc<Mutex<HashMap<String, Box<SoService>>>>| {
                 let pservicecount=so_services.lock().unwrap().iter().count();
-                format!("Hello {}, whose agent is {} and {}", "self.name", name, pservicecount)
+                let mytest = so_services.lock().unwrap().iter().map(|(s,_)| &**s).collect::<Vec<_>>().join("-");
+                format!("Hello {}, whose agent is {} and {} = '{}'", "self.name", name, pservicecount, mytest)
             })
     }
 

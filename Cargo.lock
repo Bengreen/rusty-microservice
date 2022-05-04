@@ -1769,6 +1769,7 @@ dependencies = [
  "criterion",
  "env_logger",
  "ffi-log2",
+ "ffi_helpers",
  "figment",
  "libc",
  "libloading",

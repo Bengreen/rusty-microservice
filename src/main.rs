@@ -93,6 +93,7 @@ pub fn main() {
             let uservice = uservice_init_ffi("pear").expect("UService did not initialise");
             info!("Initialised UService");
 
+            // let pservice_lib = so_library_register_ffi(library).expect("PService loaded");
 
             pservice_register_ffi(uservice, "apple", library).expect("Load pservice library");
             info!("Service loaded");

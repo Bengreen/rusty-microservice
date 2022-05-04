@@ -2,10 +2,11 @@
 //! uservice_run provides a service that creates a microservcie to allow the application of functions against a web service and incorporates a monitoring and logigng and health checks into the library.
 
 
+use ffi_helpers::error_handling;
 use ffi_log2::LogParam;
-use log::info;
-use std::fmt::{Display};
-
+use log::{info, error};
+use std::{fmt::{Display, self}, os::raw::{c_char, c_int}, any::Any, ffi::NulError};
+use std::error::Error;
 
 // TODO: consider how to do better error handling over ffi using : https://michael-f-bryan.github.io/rust-ffi-guide/errors/return_types.html
 
@@ -128,7 +129,7 @@ extern "C" {
         uservice: *mut UService,
         name: *const libc::c_char,
         library: *const libc::c_char,
-    ) -> u32;
+    ) -> i32;
     fn pservice_free(
         uservice: *mut UService,
         name: *const libc::c_char
@@ -232,13 +233,23 @@ where
 
 
 
-// #[derive(Debug)]
-// enum UServiceError {
-//     FFICall,
-//     // We will defer to the parse error implementation for their error.
-//     // Supplying extra info requires adding more data to the type.
-//     Parse(std::ffi::NulError),
-// }
+#[derive(Debug)]
+enum UServiceError {
+    FFICall,
+    // We will defer to the parse error implementation for their error.
+    // Supplying extra info requires adding more data to the type.
+    Message(String),
+    ParseNull,
+    Unknown,
+}
+
+impl fmt::Display for UServiceError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SuperErrorSideKick is here!")
+    }
+}
+
+impl Error for UServiceError {}
 
 // impl Display for UServiceError {
 //     fn fmt (&self, f: &mut Formatter) -> std::fmt::Result{
@@ -253,21 +264,71 @@ where
 //     }
 // }
 
-
+impl From<Box<dyn Any + Send + 'static>> for UServiceError {
+    fn from(other: Box<dyn Any + Send + 'static> ) -> UServiceError {
+        if let Some(owned) = other.downcast_ref::<String>() {
+            UServiceError::Message(owned.clone())
+        } else if let Some(_owned) = other.downcast_ref::<NulError>() {
+            UServiceError::ParseNull
+        } else {
+            UServiceError::Unknown
+        }
+    }
+}
 
 
 /// Register pservice by name
-pub fn pservice_register_ffi<S: Into<String>>(service: *mut UService, name: S, library_name: S) -> Result<(), std::ffi::NulError>
+pub fn pservice_register_ffi<S: Into<String>>(service: *mut UService, name: S, library_name: S) -> Result<(), Box<dyn Error>>
 where
     S: Display
 {
-    info!("Registering pservice: {} as {}", &library_name, &name);
+    info!("Registering pservice as: {}", &name);
     let c_name = std::ffi::CString::new(name.into())?;
     let c_library_name = std::ffi::CString::new(library_name.into())?;
 
-    Ok(unsafe {
-        pservice_register(service, c_name.as_ptr(),c_library_name.as_ptr());
-    })
+
+    let retval = unsafe {
+        pservice_register(service, c_name.as_ptr(),c_library_name.as_ptr())
+    };
+    match retval {
+        x if x >= 0  => {
+            info!("pservice_register completed successfully with return of {}", x);
+            Ok(())
+        },
+        x if x== -1 || x== -2 => {
+            error!("pservice_register failed from null check");
+            let err_msg_length = error_handling::last_error_length();
+            let mut buffer = vec![0; err_msg_length as usize];
+            let bytes_written = unsafe {
+                let buf = buffer.as_mut_ptr() as *mut c_char;
+                let len = buffer.len() as c_int;
+
+                error_handling::error_message_utf8(buf, len)
+            };
+            match bytes_written {
+                -1 => panic!("Our buffer wasn't big enough!"),
+                0 => panic!("There wasn't an error message... Huh?"),
+                len if len > 0 => {
+                    buffer.truncate(len as usize - 1);
+                    let msg = String::from_utf8(buffer).unwrap();
+                    error!("Error: {}", msg);
+                }
+                _ => unreachable!(),
+            }
+            Err(Box::new(UServiceError::ParseNull))
+        },
+        -2 => {
+            error!("pservice_register failed from libloading");
+            Err(Box::new(UServiceError::FFICall))
+        },
+        _ => {
+            error!("Unknown error");
+            Err(Box::new(UServiceError::Unknown))
+        },
+
+    }
+
+    // Ok(())
 }
 
 /// Free pservice by name

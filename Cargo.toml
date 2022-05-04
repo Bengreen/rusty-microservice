@@ -17,6 +17,7 @@ ffi-log2 = { path = "ffi-log2" }
 libloading = { version = "~0.7" }
 libc = { version = "~0.2" }
 aquamarine = { version = "0.1.11" }
+ffi_helpers = { version = "~0.3" }
 
 [dev-dependencies]
 criterion = { version = "~0.3", features = ["async_tokio", "html_reports"] }

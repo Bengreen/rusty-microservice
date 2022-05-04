@@ -18,12 +18,13 @@ pub struct SoService {
     pub(crate) version: libloading::os::unix::Symbol<extern "C" fn() -> *const c_char>,
     pub(crate) init: libloading::os::unix::Symbol<extern "C" fn(i32) -> i32>,
     pub(crate) process: libloading::os::unix::Symbol<extern "C" fn(i32) -> i32>,
+    library: Library,
 }
 
 /** Struct and methods to manage the Registered SO
  */
 impl SoService {
-    pub fn new(library: &Library) -> Result<SoService, Error> {
+    pub fn new(library: Library) -> Result<SoService, Error> {
         let so_init_logger: Symbol<extern "C" fn(param: LogParam)> = unsafe { library.get(b"init_logger") }?;
         let so_name: Symbol<extern "C" fn() -> *const c_char> = unsafe { library.get(b"name") }?;
         let so_version: Symbol<extern "C" fn() -> *const c_char> = unsafe { library.get(b"version") }?;
@@ -36,6 +37,7 @@ impl SoService {
             process: unsafe {so_process.into_raw()},
             name: unsafe {so_name.into_raw()},
             version: unsafe {so_version.into_raw()},
+            library: library,
         })
     }
 }

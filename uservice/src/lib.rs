@@ -2,13 +2,13 @@ use core::panic;
 use std::any::Any;
 use ffi_helpers::catch_panic;
 use libloading::Library;
-use log::{info, error};
+use log::{info, error, logger};
 
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
 use std::process;
 
-use ffi_log2::{logger_init, LogParam};
+use ffi_log2::{logger_init, LogParam, log_param};
 
 mod ffi_service;
 mod k8slifecycle;
@@ -21,6 +21,16 @@ use crate::uservice::UService;
 const NAME: &str = env!("CARGO_PKG_NAME");
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+macro_rules! function {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+        &name[..name.len() - 3]
+    }}
+}
 
 
 /// Register a shared library for by the name of the library
@@ -216,6 +226,8 @@ pub extern "C" fn pservices_init(ptr: *mut UService, config_yaml: *const libc::c
             );
         }
     };
+
+    info!("running pservices_init");
     // TODO: Check that param is not null
     0
     // logger_init(param);
@@ -229,31 +241,61 @@ pub extern "C" fn pservices_init(ptr: *mut UService, config_yaml: *const libc::c
 
 /// Initialise the FFI based logging for this crate
 #[no_mangle]
-pub extern "C" fn pservice_register(ptr: *mut UService, name: *const libc::c_char, library: *const libc::c_char) -> u32 {
-    let uservice = unsafe {
-        assert!(!ptr.is_null());
-        &mut *ptr
-    };
-    let name_str: &str = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
+pub extern "C" fn pservice_register(uservice: *mut UService, name: *const libc::c_char, library: *const libc::c_char) -> i32 {
+    ffi_helpers::null_pointer_check!(uservice, -1);
+    ffi_helpers::null_pointer_check!(name, -1);
+    ffi_helpers::null_pointer_check!(library, -1);
+
+
+
+    let name = match unsafe { std::ffi::CStr::from_ptr(name) }.to_str() {
         Ok(s) => s,
         Err(e) => {
-            panic!(
-                "FFI string conversion failed for pservices_register name: {}",
-                e
-            );
+            ffi_helpers::update_last_error(e);
+            return -2;
         }
     };
-    let library_str: &str = match unsafe { std::ffi::CStr::from_ptr(library) }.to_str() {
+    let library= match unsafe { std::ffi::CStr::from_ptr(library) }.to_str() {
         Ok(s) => s,
         Err(e) => {
-            panic!(
-                "FFI string conversion failed for pservices_register library: {}",
-                e
-            );
+            ffi_helpers::update_last_error(e);
+            return -2;
         }
     };
+
+    // let result:Result<u32,()> = catch_panic(|| {
+
+    match catch_panic::<i32, _>(|| {
+        let uservice = unsafe {&mut *uservice};
+
+        info!("Opening library {} as {} for uservice: {}", library, name, uservice.name);
+
+        let library_so = unsafe { Library::new(libloading::library_filename(library)) }.unwrap();
+        let pservice = Box::new(SoService::new(library_so).expect("Loaded pservice"));
+
+        uservice.add_soservice(name, pservice);
+
+
+        info!("init_logger called");
+        uservice.init_logger(name, log_param());
+
+        Ok(0)
+        // todo!("Register the library: {} from here", library);
+    }) {
+        Ok(retval) => {
+            info!("UService completed successfully");
+            retval
+        },
+        Err(_e) => {
+            error!("UService had a panic running {}", function!());
+            -3
+        },
+    }
+
+
+
     // TODO: Check that param is not null
-    0
+
     // logger_init(param);
     // info!(
     //     "Logging registered for {}:{} (PID: {}) using FFI",
@@ -313,10 +355,10 @@ pub extern "C" fn pservice_free(ptr: *mut UService, name: *const libc::c_char) -
 pub extern "C" fn so_service_register<'a>(ptr: *mut Library) -> *mut SoService {
     let library = unsafe {
         assert!(!ptr.is_null());
-        &mut *ptr
+        Box::from_raw(ptr)
     };
     info!("Registering functions");
-    let new_lib = SoService::new(library).expect("Loaded all elements of library");
+    let new_lib = SoService::new(*library).expect("Loaded all elements of library");
     Box::into_raw(Box::new(new_lib))
 }
 
