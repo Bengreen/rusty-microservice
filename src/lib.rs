@@ -5,7 +5,7 @@
 use ffi_helpers::error_handling;
 use ffi_log2::LogParam;
 use log::{info, error};
-use std::{fmt::{Display, self}, os::raw::{c_char, c_int}, any::Any, ffi::NulError};
+use std::{fmt::{Display, self}, os::raw::{c_char, c_int}, any::Any, ffi::NulError, ptr::null};
 use std::error::Error;
 
 // TODO: consider how to do better error handling over ffi using : https://michael-f-bryan.github.io/rust-ffi-guide/errors/return_types.html
@@ -234,51 +234,50 @@ where
 
 
 #[derive(Debug)]
-enum UServiceError {
+pub enum MyMainError {
     FFICall,
     // We will defer to the parse error implementation for their error.
     // Supplying extra info requires adding more data to the type.
-    Message(String),
+    // Message(String),
     ParseNull,
     Unknown,
 }
 
-impl fmt::Display for UServiceError {
+impl fmt::Display for MyMainError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SuperErrorSideKick is here!")
-    }
-}
-
-impl Error for UServiceError {}
-
-// impl Display for UServiceError {
-//     fn fmt (&self, f: &mut Formatter) -> std::fmt::Result{
-//         match *self {
-//             UServiceError::FFICall =>
-//                 write!(f, "FFI Call failed to get a valid reply"),
-//             // The wrapped error contains additional information and is available
-//             // via the source() method.
-//             UServiceError::Parse(..) =>
-//                 write!(f, "Parse error"),
-//         }
-//     }
-// }
-
-impl From<Box<dyn Any + Send + 'static>> for UServiceError {
-    fn from(other: Box<dyn Any + Send + 'static> ) -> UServiceError {
-        if let Some(owned) = other.downcast_ref::<String>() {
-            UServiceError::Message(owned.clone())
-        } else if let Some(_owned) = other.downcast_ref::<NulError>() {
-            UServiceError::ParseNull
-        } else {
-            UServiceError::Unknown
+        match self {
+            MyMainError::FFICall => write!(f, "FFICall error"),
+            MyMainError::ParseNull => write!(f, "ParseNull error"),
+            MyMainError::Unknown => write!(f, "Unknown error"),
         }
     }
 }
 
+impl Error for MyMainError {}
+
+impl From<NulError> for MyMainError {
+    fn from(_err: NulError) -> Self {
+        MyMainError::ParseNull
+    }
+}
+
+
+
+// impl From<Box<dyn Any + Send + 'static>> for UServiceError {
+//     fn from(other: Box<dyn Any + Send + 'static> ) -> UServiceError {
+//         if let Some(owned) = other.downcast_ref::<String>() {
+//             UServiceError::Message(owned.clone())
+//         } else if let Some(_owned) = other.downcast_ref::<NulError>() {
+//             UServiceError::ParseNull
+//         } else {
+//             UServiceError::Unknown
+//         }
+//     }
+// }
+
 
 /// Register pservice by name
-pub fn pservice_register_ffi<S: Into<String>>(service: *mut UService, name: S, library_name: S) -> Result<(), Box<dyn Error>>
+pub fn pservice_register_ffi<S: Into<String>>(service: *mut UService, name: S, library_name: S) -> Result<(), MyMainError>
 where
     S: Display
 {
@@ -315,15 +314,15 @@ where
                 }
                 _ => unreachable!(),
             }
-            Err(Box::new(UServiceError::ParseNull))
+            Err(MyMainError::ParseNull)
         },
         -2 => {
             error!("pservice_register failed from libloading");
-            Err(Box::new(UServiceError::FFICall))
+            Err(MyMainError::FFICall)
         },
         _ => {
             error!("Unknown error");
-            Err(Box::new(UServiceError::Unknown))
+            Err(MyMainError::Unknown)
         },
 
     }

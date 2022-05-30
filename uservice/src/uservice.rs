@@ -9,6 +9,9 @@ use futures::future;
 use log::info;
 use warp::Filter;
 
+
+use crate::error::UServiceError;
+
 use std::collections::HashMap;
 use std::mem;
 use std::sync::{Arc, Mutex};
@@ -53,7 +56,9 @@ impl<'a> UService {
             port: 8080,
         }
     }
-
+    pub fn init_all(&self, config_yaml: &str) -> Result<(), UServiceError> {
+        Ok(())
+    }
 
     /// Initialise the async service and initialise services within it
     pub fn start(&mut self) {

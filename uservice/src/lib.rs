@@ -1,12 +1,13 @@
 use core::panic;
-use std::any::Any;
-use ffi_helpers::catch_panic;
+// use std::any::Any;
+use ffi_helpers::{catch_panic};
+    // update_last_error};
 use libloading::Library;
-use log::{info, error, logger};
+use log::{info, error};
 
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_int};
-use std::process;
+use std::{process};
 
 use ffi_log2::{logger_init, LogParam, log_param};
 
@@ -14,6 +15,8 @@ mod ffi_service;
 mod k8slifecycle;
 mod picoservice;
 mod uservice;
+mod error;
+
 
 use crate::ffi_service::SoService;
 use crate::uservice::UService;
@@ -159,6 +162,7 @@ pub extern "C" fn uservice_start(uservice_ptr: *mut UService) -> i32 {
             value
         },
         Err(_e) => {
+            // update_last_error("uservice_start failed with panic");
             error!("uservice_start failed with panic");
             -2
         },
@@ -199,6 +203,7 @@ pub extern "C" fn pservices_logger_init(ptr: *mut UService, param: LogParam) -> 
         assert!(!ptr.is_null());
         &mut *ptr
     };
+    todo!("DO we need to create this");
     // TODO: Check that param is not null
     0
     // logger_init(param);
@@ -212,24 +217,50 @@ pub extern "C" fn pservices_logger_init(ptr: *mut UService, param: LogParam) -> 
 
 /// Initialise the FFI based logging for this crate
 #[no_mangle]
-pub extern "C" fn pservices_init(ptr: *mut UService, config_yaml: *const libc::c_char) -> u32 {
-    let uservice = unsafe {
-        assert!(!ptr.is_null());
-        &mut *ptr
-    };
-    let config_yaml_str: &str = match unsafe { std::ffi::CStr::from_ptr(config_yaml) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            panic!(
-                "FFI string conversion failed for performing pservices_init: {}",
-                e
-            );
-        }
-    };
+pub extern "C" fn pservices_init(uservice: *mut UService, config_yaml: *const libc::c_char) -> i32 {
+    ffi_helpers::null_pointer_check!(uservice, -1);
+    ffi_helpers::null_pointer_check!(config_yaml, -1);
 
-    info!("running pservices_init");
-    // TODO: Check that param is not null
-    0
+
+
+    // let uservice = unsafe {
+    //     assert!(!ptr.is_null());
+    //     &mut *ptr
+    // };
+
+    match catch_panic::<i32, _>(|| {
+        let uservice = unsafe {&mut *uservice};
+        let config_yaml_str: &str = unsafe { std::ffi::CStr::from_ptr(config_yaml) }.to_str()?;
+
+        uservice.init_all(config_yaml_str)?;
+        Ok(0)
+    }) {
+        Ok(retval) => {
+            info!("UService completed successfully");
+            retval
+        },
+        Err(_e) => {
+            error!("UService had a panic running {}", function!());
+            -3
+        },
+    }
+
+
+
+    // let config_yaml_str: &str = match unsafe { std::ffi::CStr::from_ptr(config_yaml) }.to_str() {
+    //     Ok(s) => s,
+    //     Err(e) => {
+    //         panic!(
+    //             "FFI string conversion failed for performing pservices_init: {}",
+    //             e
+    //         );
+    //     }
+    // };
+
+    // info!("running pservices_init");
+    // todo!("create init for pservice");
+    // // TODO: Check that param is not null
+    // 0
     // logger_init(param);
     // info!(
     //     "Logging registered for {}:{} (PID: {}) using FFI",
@@ -393,7 +424,8 @@ pub extern "C" fn so_service_init(ptr: *mut SoService, param: i32) -> i32 {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    info!("init called");
+    // todo!("Change this to take a char* for the config yaml");
+    info!("init called: Change this to take a char* for the config yaml");
     (&service.init)(param)
 }
 
@@ -483,7 +515,6 @@ pub extern "C" fn uservice_remove_so(
 /// let hc = uservice::createHealthProbe(health_name.as_ptr(), 2);
 /// assert_eq!(hc, 20);
 /// ```
-#[no_mangle]
 pub extern "C" fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_int {
     if name.is_null() {
         panic!("Unable to read probe name");
@@ -498,25 +529,6 @@ pub extern "C" fn createHealthProbe(name: *const c_char, margin_ms: c_int) -> c_
     name_str.len() as i32 + margin_ms
 }
 
-
-/// Error type for handling errors on FFI calls
-#[derive(Debug)]
-enum Error {
-    Message(String),
-    Unknown,
-}
-
-impl From<Box<dyn Any + Send + 'static>> for Error {
-   fn from(other: Box<dyn Any + Send + 'static>) -> Error {
-     if let Some(owned) = other.downcast_ref::<String>() {
-       Error::Message(owned.clone())
-     } else if let Some(owned) = other.downcast_ref::<String>() {
-       Error::Message(owned.to_string())
-     } else {
-       Error::Unknown
-     }
-   }
-}
 
 #[no_mangle]
 pub extern  "C" fn panic_check() -> u32 {

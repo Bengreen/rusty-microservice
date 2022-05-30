@@ -78,7 +78,7 @@ uint32_t pservices_logger_init(struct UService *ptr, LogParam param);
 /**
  * Initialise the FFI based logging for this crate
  */
-uint32_t pservices_init(struct UService *ptr, const char *config_yaml);
+int32_t pservices_init(struct UService *uservice, const char *config_yaml);
 
 /**
  * Initialise the FFI based logging for this crate

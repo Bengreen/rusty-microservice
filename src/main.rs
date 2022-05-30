@@ -98,22 +98,13 @@ pub fn main() {
             pservice_register_ffi(uservice, "apple", library).expect("Load pservice library");
             info!("Service loaded");
 
-            info!("initialising so logging");
-            pservices_logger_init_ffi(uservice, log_param());
-
-            info!("Registered logging for pservices");
-
             pservices_init_ffi(uservice, my_config).expect("init completes");
             info!("PServices init completed");
-
 
             // Start the UService here
 
             uservice_start_ffi(uservice).expect("uservice init completes");
             info!("uservice completed and exited");
-
-
-            // UService has exited here
 
 
             // uservice_stop_ffi(uservice).expect("")  // NOT needed as already stopped
